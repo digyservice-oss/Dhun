@@ -15,6 +15,7 @@ body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-a
 header{padding:18px 16px 6px;max-width:1200px;margin:auto}
 header h1{margin:0;font-size:22px}
 header p{margin:4px 0 0;color:var(--muted);font-size:14px}
+main>*{min-width:0}
 main{max-width:1200px;margin:auto;padding:12px 16px 40px;display:grid;grid-template-columns:360px 1fr;gap:18px}
 @media(max-width:860px){main{grid-template-columns:1fr}}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px}
@@ -29,6 +30,8 @@ input[type=color]{width:44px;height:34px;border:1px solid var(--line);border-rad
 .drop{border:1.5px dashed var(--line);border-radius:12px;padding:14px;text-align:center;cursor:pointer;color:var(--muted);font-size:14px}
 .drop:hover,.drop.over{border-color:var(--accent);color:var(--text)}
 .drop strong{color:var(--text);display:block;word-break:break-all}
+.drop small{display:block}
+header,main{overflow-wrap:anywhere}
 .drop input{display:none}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{border:1px solid var(--line);background:#11141a;color:var(--text);border-radius:999px;padding:6px 11px;font:inherit;font-size:13px;cursor:pointer}
@@ -63,8 +66,8 @@ canvas{max-width:100%;max-height:70vh;display:block}
   <section class="panel" id="controls">
     <h2>1. Audio</h2>
     <label class="drop" id="audioDrop">
-      <input type="file" id="audioFile" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac">
-      <span id="audioLabel">Audio file chuno ya yahan drop karo<br><small>MP3, WAV, M4A, OGG…</small></span>
+      <input type="file" id="audioFile" accept="audio/*,video/*,.mp3,.wav,.m4a,.aac,.ogg,.oga,.opus,.flac,.amr,.3gp,.mp4,.webm">
+      <span id="audioLabel">Audio file chuno ya yahan drop karo<br><small>MP3, WAV, M4A, OGG, WhatsApp audio, ya video file bhi</small></span>
     </label>
 
     <h2>2. Background</h2>
@@ -187,7 +190,9 @@ function wireDrop(dropId, inputId, handler) {
   drop.addEventListener("drop", e => { e.preventDefault(); drop.classList.remove("over"); e.dataTransfer.files[0] && handler(e.dataTransfer.files[0]); });
 }
 wireDrop("audioDrop", "audioFile", f => {
-  if (!f.type.startsWith("audio") && !/\.(mp3|wav|m4a|aac|ogg|flac|opus|webm)$/i.test(f.name)) return setStatus("Yeh audio file nahi lagti.", "err");
+  if (f.type.startsWith("image")) return setStatus("Yeh photo hai. Audio wale dabbe mein gaana chuno, photo neeche Background mein.", "err");
+  $("previewBtn").disabled = $("renderBtn").disabled = true;
+  setStatus("Audio load ho raha hai…");
   stopAll();
   if (state.audioUrl) URL.revokeObjectURL(state.audioUrl);
   state.audioUrl = URL.createObjectURL(f);
@@ -200,7 +205,7 @@ wireDrop("audioDrop", "audioFile", f => {
     $("previewBtn").disabled = $("renderBtn").disabled = false;
     drawStatic();
   };
-  player.onerror = () => setStatus("Yeh audio format browser chala nahi pa raha. MP3 ya WAV try karo.", "err");
+  player.onerror = () => { $("previewBtn").disabled = $("renderBtn").disabled = true; setStatus("Yeh file chal nahi pa rahi. MP3 ya M4A file try karo.", "err"); };
 });
 wireDrop("imgDrop", "imgFile", f => {
   if (!f.type.startsWith("image")) return setStatus("Yeh image file nahi hai.", "err");
