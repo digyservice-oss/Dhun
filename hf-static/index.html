@@ -1,0 +1,708 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Audio to Video</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700&family=Kalam:wght@700&family=Mukta:wght@500;700&family=Pacifico&family=Poppins:wght@500;700&family=Yatra+One&display=swap">
+<style>
+:root{
+  --bg:#0f1115;--panel:#181b22;--line:#2a2f3a;--text:#e9ecf1;--muted:#9aa3b2;
+  --accent:#7c5cff;--accent2:#22d3ee;--ok:#22c55e;--err:#ef4444;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{padding:18px 16px 6px;max-width:1200px;margin:auto}
+header h1{margin:0;font-size:22px}
+header p{margin:4px 0 0;color:var(--muted);font-size:14px}
+main>*{min-width:0}
+main{max-width:1200px;margin:auto;padding:12px 16px 40px;display:grid;grid-template-columns:360px 1fr;gap:18px}
+@media(max-width:860px){main{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px}
+.panel h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:14px 0 8px}
+.panel h2:first-child{margin-top:0}
+label{display:block;font-size:13px;color:var(--muted);margin:8px 0 4px}
+input[type=text],select{width:100%;padding:9px 10px;border-radius:9px;border:1px solid var(--line);background:#11141a;color:var(--text);font:inherit}
+input[type=range]{width:100%}
+input[type=color]{width:44px;height:34px;border:1px solid var(--line);border-radius:8px;background:none;padding:2px}
+.row{display:flex;gap:10px;align-items:center}
+.row>*{flex:1}
+.drop{border:1.5px dashed var(--line);border-radius:12px;padding:14px;text-align:center;cursor:pointer;color:var(--muted);font-size:14px}
+.drop:hover,.drop.over{border-color:var(--accent);color:var(--text)}
+.drop strong{color:var(--text);display:block;word-break:break-all}
+.drop small{display:block}
+header,main{overflow-wrap:anywhere}
+.drop input{display:none}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:#11141a;color:var(--text);border-radius:999px;padding:6px 11px;font:inherit;font-size:13px;cursor:pointer}
+.chip.on{border-color:var(--accent);background:rgba(124,92,255,.18)}
+.swatches{display:flex;gap:6px;flex-wrap:wrap}
+.sw{width:34px;height:34px;border-radius:8px;border:2px solid transparent;cursor:pointer}
+.sw.on{border-color:#fff}
+button.primary{width:100%;padding:12px;border:0;border-radius:11px;background:linear-gradient(90deg,var(--accent),var(--accent2));color:#fff;font:600 15px system-ui;cursor:pointer;margin-top:6px}
+button.primary:disabled{opacity:.45;cursor:not-allowed}
+button.ghost{padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:#11141a;color:var(--text);font:inherit;cursor:pointer}
+.stage{display:flex;flex-direction:column;gap:12px}
+.canvasWrap{background:#000;border-radius:14px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;overflow:hidden;min-height:240px}
+canvas{max-width:100%;max-height:70vh;display:block}
+.bar{height:8px;background:#11141a;border-radius:99px;overflow:hidden;border:1px solid var(--line)}
+.bar>div{height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .2s}
+.status{font-size:14px;color:var(--muted);min-height:20px}
+.status.err{color:var(--err)}.status.ok{color:var(--ok)}
+.result{display:none;gap:10px;flex-direction:column}
+.result video{width:100%;border-radius:12px;background:#000}
+.result a{display:block;text-align:center;text-decoration:none}
+.hint{font-size:12px;color:var(--muted);margin-top:6px}
+textarea{width:100%;min-height:150px;padding:9px 10px;border-radius:9px;border:1px solid var(--line);background:#11141a;color:var(--text);font:14px/1.5 system-ui,sans-serif;resize:vertical}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.btnrow .ghost{flex:1 1 auto;font-size:13px}
+.preset{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:96px;padding:8px 11px;border-radius:12px}
+.preset small{color:var(--muted);font-size:11px}
+#tapBox{display:none;flex-direction:column;gap:8px;background:var(--panel);border:1px solid var(--accent);border-radius:14px;padding:12px}
+#tapBox .now{font-size:16px;font-weight:600}
+#tapBox .nxt{font-size:13px;color:var(--muted)}
+#tapBtn{padding:18px;font-size:18px}
+.controls{display:flex;gap:8px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<header>
+  <h1>🎵 Audio → 🎬 Video</h1>
+  <p>Gaana / audio upload karo, background aur visualizer chuno, aur video download karo. Sab kuch aapke browser mein banta hai — aapki file kahin upload nahi hoti.</p>
+</header>
+
+<main>
+  <section class="panel" id="controls">
+    <h2>1. Audio</h2>
+    <label class="drop" id="audioDrop">
+      <input type="file" id="audioFile" accept="audio/*,video/*,.mp3,.wav,.m4a,.aac,.ogg,.oga,.opus,.flac,.amr,.3gp,.mp4,.webm">
+      <span id="audioLabel">Audio file chuno ya yahan drop karo<br><small>MP3, WAV, M4A, OGG, WhatsApp audio, ya video file bhi</small></span>
+    </label>
+
+    <h2>2. Style (ek tap mein look)</h2>
+    <div class="chips" id="styleChips"></div>
+    <div class="hint">Style chunne se rang, visualizer, font aur subtitle sab ek saath set ho jaate hain. Baad mein kuch bhi badal sakte ho.</div>
+
+    <h2>3. Background</h2>
+    <label class="drop" id="imgDrop">
+      <input type="file" id="imgFile" accept="image/*">
+      <span id="imgLabel">Photo / cover image (optional)</span>
+    </label>
+    <div class="row" style="margin-top:8px">
+      <button class="ghost" id="imgClear" type="button">Image hatao</button>
+    </div>
+    <label>Ya gradient chuno</label>
+    <div class="swatches" id="gradients"></div>
+    <label>Image blur: <span id="blurVal">0</span>px</label>
+    <input type="range" id="blur" min="0" max="40" value="0">
+    <label>Andhera (dim): <span id="dimVal">35</span>%</label>
+    <input type="range" id="dim" min="0" max="85" value="35">
+
+    <h2>4. Visualizer</h2>
+    <div class="chips" id="vizChips"></div>
+    <div class="row">
+      <div><label>Rang</label><input type="color" id="vizColor" value="#22d3ee"></div>
+      <div><label>Doosra rang</label><input type="color" id="vizColor2" value="#7c5cff"></div>
+    </div>
+    <label>Position</label>
+    <select id="vizPos">
+      <option value="bottom">Neeche</option>
+      <option value="center">Beech mein</option>
+      <option value="full">Poori screen</option>
+    </select>
+
+    <h2>5. Text</h2>
+    <label>Title (gaane ka naam)</label>
+    <input type="text" id="title" placeholder="Mera Gaana" maxlength="80">
+    <label>Artist / subtitle</label>
+    <input type="text" id="artist" placeholder="Artist ka naam" maxlength="80">
+    <div class="row">
+      <div><label>Text rang</label><input type="color" id="textColor" value="#ffffff"></div>
+      <div><label><input type="checkbox" id="showProgress" checked> Progress bar</label></div>
+    </div>
+    <label>Font</label>
+    <select id="font">
+      <option value="Poppins">Poppins (modern)</option>
+      <option value="Mukta">Mukta (saaf Hindi)</option>
+      <option value="Baloo 2">Baloo (gol, mazedaar)</option>
+      <option value="Kalam">Kalam (haath ki likhawat)</option>
+      <option value="Yatra One">Yatra (bhakti / desi)</option>
+      <option value="Pacifico">Pacifico (sirf English)</option>
+      <option value="system">Phone ka font</option>
+    </select>
+
+    <h2>6. Lyrics / Subtitle</h2>
+    <label for="lyrics">Lyrics yahan paste karo (har line alag)</label>
+    <textarea id="lyrics" placeholder="Pehli line&#10;Doosri line&#10;Teesri line&#10;&#10;Ya timing ke saath (LRC):&#10;[00:12.50] Pehli line&#10;[00:17.00] Doosri line"></textarea>
+    <div class="btnrow">
+      <button class="ghost" id="syncBtn" type="button">👆 Tap se sync karo</button>
+      <button class="ghost" id="autoBtn" type="button">⏱ Auto timing</button>
+      <label class="ghost" style="margin:0;text-align:center;cursor:pointer">📄 LRC/SRT file<input type="file" id="lrcFile" accept=".lrc,.srt,.txt,text/plain" style="display:none"></label>
+    </div>
+    <div class="hint" id="lyrHint">Tap se sync: gaana chalega, har line shuru hote hi bada button dabao. Timing apne aap lyrics mein likh di jayegi.</div>
+    <label>Subtitle style</label>
+    <div class="chips" id="subChips"></div>
+    <div class="row">
+      <div><label>Highlight rang</label><input type="color" id="subColor" value="#fde047"></div>
+      <div><label>Jagah</label>
+        <select id="subPos"><option value="bottom">Neeche</option><option value="middle">Beech</option><option value="top">Upar</option></select>
+      </div>
+    </div>
+    <label>Subtitle size: <span id="subSizeVal">6</span></label>
+    <input type="range" id="subSize" min="3" max="11" step="0.5" value="6">
+    <label><input type="checkbox" id="subNext" checked> Agli line bhi halki dikhao</label>
+
+    <h2>7. Size</h2>
+    <div class="chips" id="sizeChips"></div>
+    <label>Quality</label>
+    <select id="fps">
+      <option value="30">30 FPS (recommended)</option>
+      <option value="24">24 FPS (chhoti file)</option>
+      <option value="60">60 FPS (smooth)</option>
+    </select>
+  </section>
+
+  <section class="stage">
+    <div class="canvasWrap"><canvas id="cv" width="1280" height="720"></canvas></div>
+    <div id="tapBox">
+      <div class="now" id="tapNow"></div>
+      <div class="nxt" id="tapNext"></div>
+      <button class="primary" id="tapBtn" type="button">👆 Yeh line shuru — TAP</button>
+      <button class="ghost" id="tapDone" type="button">✓ Bas, sync khatam</button>
+    </div>
+    <div class="controls">
+      <button class="ghost" id="previewBtn" type="button" disabled>▶ Preview</button>
+      <button class="ghost" id="stopBtn" type="button" disabled>■ Stop</button>
+    </div>
+    <button class="primary" id="renderBtn" type="button" disabled>🎬 Video banao</button>
+    <div class="bar"><div id="progress"></div></div>
+    <div class="status" id="status">Shuru karne ke liye audio file chuno.</div>
+    <div class="hint">Video gaane ki poori lambai jitna time leti hai (real-time record hoti hai). Banate waqt yeh tab khula rakhein.</div>
+    <div class="result" id="result">
+      <video id="outVideo" controls playsinline></video>
+      <a class="primary" id="dlLink" href="#" download style="padding:12px;border-radius:11px;background:linear-gradient(90deg,#22c55e,#16a34a);color:#fff;font-weight:600">⬇ Video download karo</a>
+    </div>
+  </section>
+</main>
+
+<audio id="player" preload="auto" crossorigin="anonymous"></audio>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const cv = $("cv"), ctx = cv.getContext("2d");
+const player = $("player");
+
+const GRADIENTS = [
+  ["#1e1b4b", "#7c3aed"], ["#0f172a", "#0e7490"], ["#3b0764", "#db2777"],
+  ["#052e16", "#15803d"], ["#431407", "#f97316"], ["#000000", "#334155"],
+  ["#172554", "#f43f5e"], ["#1f2937", "#eab308"],
+];
+const VIZ = [["bars","Bars"],["mirror","Mirror bars"],["wave","Waveform"],["circle","Circle"],["particles","Pulse"],["none","Kuch nahi"]];
+const SIZES = [["16:9",1280,720,"YouTube 16:9"],["9:16",720,1280,"Reels/Shorts 9:16"],["1:1",1080,1080,"Square 1:1"],["4:5",1080,1350,"Insta 4:5"]];
+
+const SUBS = [["karaoke","Karaoke"],["simple","Simple"],["box","Box"],["neon","Neon"],["pop","Pop"]];
+const FONT_W = { "Pacifico": 400, "Yatra One": 400 };
+const PRESETS = [
+  { id: "bhakti", name: "🙏 Bhakti", note: "Kesariya, sunehra", grad: 4, viz: "circle", c1: "#fde68a", c2: "#f97316", font: "Yatra One", sub: "karaoke", subColor: "#fde047", text: "#fff7ed" },
+  { id: "romantic", name: "💕 Romantic", note: "Gulabi, soft", grad: 2, viz: "mirror", c1: "#f9a8d4", c2: "#c084fc", font: "Kalam", sub: "neon", subColor: "#f472b6", text: "#ffffff" },
+  { id: "party", name: "🎉 Party", note: "Tez, chamakdaar", grad: 6, viz: "bars", c1: "#22d3ee", c2: "#a3e635", font: "Baloo 2", sub: "pop", subColor: "#facc15", text: "#ffffff" },
+  { id: "lofi", name: "🌙 Lo-fi", note: "Shaant, dark", grad: 5, viz: "wave", c1: "#e2e8f0", c2: "#94a3b8", font: "Mukta", sub: "box", subColor: "#e2e8f0", text: "#e2e8f0" },
+  { id: "sad", name: "💧 Sad", note: "Neela, dheema", grad: 1, viz: "particles", c1: "#93c5fd", c2: "#6366f1", font: "Poppins", sub: "simple", subColor: "#bfdbfe", text: "#dbeafe" },
+];
+const state = { grad: 0, viz: "bars", size: "16:9", sub: "karaoke", img: null, audioUrl: null, audioName: "" };
+
+// ---------- UI builders ----------
+GRADIENTS.forEach((g, i) => {
+  const d = document.createElement("div");
+  d.className = "sw" + (i === 0 ? " on" : "");
+  d.style.background = `linear-gradient(135deg,${g[0]},${g[1]})`;
+  d.onclick = () => { state.grad = i; [...$("gradients").children].forEach((c, j) => c.classList.toggle("on", j === i)); drawStatic(); };
+  $("gradients").appendChild(d);
+});
+function chips(container, items, key, onPick) {
+  items.forEach(it => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "chip" + (state[key] === it[0] ? " on" : "");
+    b.textContent = it[3] || it[1]; b.dataset.v = it[0];
+    b.onclick = () => { state[key] = it[0]; [...container.children].forEach(c => c.classList.toggle("on", c.dataset.v === it[0])); onPick && onPick(); drawStatic(); };
+    container.appendChild(b);
+  });
+}
+chips($("vizChips"), VIZ, "viz");
+chips($("sizeChips"), SIZES, "size", applySize);
+chips($("subChips"), SUBS, "sub");
+function markChip(container, v) { [...container.children].forEach(c => c.classList.toggle("on", c.dataset.v === v)); }
+PRESETS.forEach(pr => {
+  const b = document.createElement("button");
+  b.type = "button"; b.className = "chip preset"; b.dataset.v = pr.id;
+  const n = document.createElement("span"); n.textContent = pr.name;
+  const sm = document.createElement("small"); sm.textContent = pr.note;
+  b.append(n, sm);
+  b.onclick = () => {
+    markChip($("styleChips"), pr.id);
+    state.grad = pr.grad; [...$("gradients").children].forEach((c, j) => c.classList.toggle("on", j === pr.grad));
+    state.viz = pr.viz; markChip($("vizChips"), pr.viz);
+    state.sub = pr.sub; markChip($("subChips"), pr.sub);
+    $("vizColor").value = pr.c1; $("vizColor2").value = pr.c2; $("subColor").value = pr.subColor; $("textColor").value = pr.text;
+    $("font").value = pr.font; bgCache = null; loadFont().then(drawStatic); drawStatic();
+  };
+  $("styleChips").appendChild(b);
+});
+
+// ---------- fonts ----------
+function fam() { const f = $("font").value; return f === "system" ? 'system-ui,"Segoe UI",sans-serif' : `"${f}","Mukta",system-ui,sans-serif`; }
+function fnt(px, w) { const f = $("font").value; return `${FONT_W[f] || w || 700} ${Math.round(px)}px ${fam()}`; }
+function loadFont() {
+  const f = $("font").value; if (f === "system" || !document.fonts) return Promise.resolve();
+  return Promise.all([document.fonts.load(`${FONT_W[f] || 700} 40px "${f}"`, "अआ Aa"), document.fonts.load('700 40px "Mukta"', "अआ")]).catch(() => {});
+}
+$("font").addEventListener("input", () => { loadFont().then(drawStatic); drawStatic(); });
+loadFont().then(() => drawStatic());
+
+// ---------- lyrics ----------
+let lyr = []; // [{t, text}] sorted
+function lrcTime(t) { const m = Math.floor(t / 60), s = t - m * 60; return `[${String(m).padStart(2, "0")}:${s.toFixed(2).padStart(5, "0")}]`; }
+function plainLines() { return $("lyrics").value.split(/\r?\n/).map(l => l.replace(/\[[^\]]*\]/g, "").trim()).filter(Boolean); }
+function parseLyrics() {
+  const out = []; const plain = [];
+  $("lyrics").value.split(/\r?\n/).forEach(l => {
+    const tags = [...l.matchAll(/\[(\d+):(\d+(?:[.:]\d+)?)\]/g)];
+    const text = l.replace(/\[[^\]]*\]/g, "").trim();
+    if (tags.length) tags.forEach(x => out.push({ t: +x[1] * 60 + parseFloat(x[2].replace(":", ".")), text }));
+    else if (text) plain.push(text);
+  });
+  if (out.length) lyr = out.sort((a, b) => a.t - b.t);
+  else if (plain.length) { const d = player.duration || plain.length * 4; lyr = plain.map((text, i) => ({ t: d * i / plain.length, text })); }
+  else lyr = [];
+  const h = $("lyrHint");
+  if (!lyr.length) h.textContent = "Tap se sync: gaana chalega, har line shuru hote hi bada button dabao. Timing apne aap lyrics mein likh di jayegi.";
+  else if (out.length) h.textContent = `✓ ${lyr.length} lines timing ke saath ready.`;
+  else h.textContent = `${lyr.length} lines — abhi barabar baant kar dikhayi jayengi. Sahi timing ke liye "Tap se sync karo" dabao.`;
+}
+$("lyrics").addEventListener("input", () => { parseLyrics(); drawStatic(); });
+$("subSize").addEventListener("input", () => { $("subSizeVal").textContent = $("subSize").value; drawStatic(); });
+["subColor","subPos","subNext"].forEach(id => $(id).addEventListener("input", drawStatic));
+$("autoBtn").onclick = () => {
+  const lines = plainLines(); if (!lines.length) return setStatus("Pehle lyrics likho ya paste karo.", "err");
+  if (!player.duration) return setStatus("Pehle audio file chuno, phir auto timing.", "err");
+  const d = player.duration;
+  $("lyrics").value = lines.map((l, i) => lrcTime(d * i / lines.length) + " " + l).join("\n");
+  parseLyrics(); drawStatic(); setStatus("Auto timing lag gayi. Har line ka time [mm:ss] mein badal bhi sakte ho.", "ok");
+};
+$("lrcFile").onchange = async () => {
+  const f = $("lrcFile").files[0]; if (!f) return;
+  let txt = await f.text();
+  if (/-->/.test(txt)) { // SRT -> LRC
+    txt = txt.replace(/\r/g, "").split(/\n\s*\n/).map(b => {
+      const m = b.match(/(\d+):(\d+):(\d+)[,.](\d+)\s*-->/); if (!m) return "";
+      const text = b.split("\n").slice(b.split("\n").findIndex(x => x.includes("-->")) + 1).join(" ").replace(/<[^>]+>/g, "").trim();
+      return lrcTime(+m[1] * 3600 + +m[2] * 60 + +m[3] + +("0." + m[4])) + " " + text;
+    }).filter(Boolean).join("\n");
+  }
+  $("lyrics").value = txt; $("lrcFile").value = ""; parseLyrics(); drawStatic(); setStatus("Lyrics file load ho gayi.", "ok");
+};
+
+// tap-to-sync
+let syncing = false, syncLines = [], syncTimes = [];
+function showTap() {
+  const i = syncTimes.length;
+  $("tapNow").textContent = i < syncLines.length ? `Line ${i + 1}/${syncLines.length}: ${syncLines[i]}` : "Sab lines ho gayi";
+  $("tapNext").textContent = i + 1 < syncLines.length ? "Agli: " + syncLines[i + 1] : "";
+}
+$("syncBtn").onclick = async () => {
+  syncLines = plainLines();
+  if (!syncLines.length) return setStatus("Pehle lyrics likho ya paste karo.", "err");
+  if (!player.duration) return setStatus("Pehle audio file chuno.", "err");
+  stopAll(); ensureAudio(); await actx.resume(); hideResult();
+  syncing = true; syncTimes = []; showTap(); $("tapBox").style.display = "flex";
+  setBusy(true); $("renderBtn").textContent = "👆 Sync chal raha hai…";
+  player.currentTime = 0; await player.play(); startLoop();
+  setStatus("Har line gaane mein shuru hote hi TAP dabao (computer par Space key).");
+  $("tapBtn").focus();
+};
+$("tapBtn").onclick = () => {
+  if (!syncing) return;
+  syncTimes.push(Math.max(0, player.currentTime - 0.15));
+  if (syncTimes.length >= syncLines.length) finishSync(); else showTap();
+};
+$("tapDone").onclick = () => finishSync();
+document.addEventListener("keydown", e => { if (syncing && e.code === "Space") { e.preventDefault(); $("tapBtn").click(); } });
+function finishSync() {
+  if (!syncing) return; syncing = false;
+  const d = player.duration || 0, n = syncLines.length, got = syncTimes.length;
+  const last = got ? syncTimes[got - 1] : 0;
+  const times = syncLines.map((_, i) => i < got ? syncTimes[i] : last + (d - last) * (i - got + 1) / (n - got + 1));
+  if (got) $("lyrics").value = syncLines.map((l, i) => lrcTime(times[i]) + " " + l).join("\n");
+  $("tapBox").style.display = "none";
+  player.pause(); stopLoop(); setBusy(false);
+  parseLyrics(); drawStatic();
+  setStatus(got ? `Sync ho gaya (${got}/${n} lines tap ki). Ab Preview dekho ya Video banao.` : "Sync cancel kiya.", got ? "ok" : "");
+}
+
+function wrapRows(text, maxW) {
+  const words = text.split(/\s+/); const rows = []; let cur = "";
+  words.forEach(w => { const t = cur ? cur + " " + w : w; if (ctx.measureText(t).width > maxW && cur) { rows.push(cur); cur = w; } else cur = t; });
+  if (cur) rows.push(cur); return rows;
+}
+function drawLyrics(t, live) {
+  if (!lyr.length) return;
+  const W = cv.width, H = cv.height, S = Math.min(W, H);
+  let i = -1; for (let k = 0; k < lyr.length; k++) { if (lyr[k].t <= t + 0.001) i = k; else break; }
+  if (i < 0 && !live) i = 0;
+  if (i < 0) return;
+  const L = lyr[i]; if (!L.text) return;
+  const end = i + 1 < lyr.length ? lyr[i + 1].t : (player.duration || L.t + 5);
+  const since = live ? t - L.t : 0.6;
+  const prog = live ? Math.min(1, Math.max(0, since / Math.max(0.6, (end - L.t) * 0.85))) : 0.45;
+  const st = state.sub, hi = $("subColor").value, tc = $("textColor").value;
+  const px = S * (+$("subSize").value) / 100;
+  ctx.save();
+  ctx.font = fnt(px); ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  const rows = wrapRows(L.text, W * 0.86);
+  const lh = px * 1.3, blockH = rows.length * lh;
+  const pos = $("subPos").value;
+  const cy = pos === "top" ? H * 0.24 : pos === "middle" ? H * 0.5 : H * 0.8 - (rows.length - 1) * lh / 2;
+  const y0 = cy - blockH / 2 + lh / 2;
+  // entry animation
+  let alpha = Math.min(1, since / 0.25), scale = 1;
+  if (st === "pop") { const k = Math.min(1, since / 0.3); scale = 0.6 + 0.4 * (1 - Math.pow(1 - k, 3)) + (k < 1 ? 0.06 * Math.sin(k * Math.PI) : 0); }
+  ctx.globalAlpha = alpha;
+  ctx.translate(W / 2, cy); ctx.scale(scale, scale); ctx.translate(-W / 2, -cy);
+  if (st === "box") {
+    const bw = Math.max(...rows.map(r => ctx.measureText(r).width)) + px * 1.2;
+    ctx.fillStyle = "rgba(0,0,0,.55)"; roundRect(W / 2 - bw / 2, y0 - lh / 2 - px * 0.25, bw, blockH + px * 0.5, px * 0.4);
+  }
+  const widths = rows.map(r => ctx.measureText(r).width), total = widths.reduce((a, b) => a + b, 0);
+  let fill = prog * total;
+  rows.forEach((r, j) => {
+    const y = y0 + j * lh, w = widths[j], x0 = W / 2 - w / 2;
+    if (st === "karaoke") {
+      ctx.shadowColor = "rgba(0,0,0,.7)"; ctx.shadowBlur = px * 0.25;
+      ctx.fillStyle = tc; ctx.globalAlpha = alpha * 0.6; ctx.fillText(r, W / 2, y); ctx.globalAlpha = alpha;
+      const fw = Math.max(0, Math.min(w, fill)); fill -= w;
+      if (fw > 0) { ctx.save(); ctx.beginPath(); ctx.rect(x0 - 2, y - lh, fw + 2, lh * 2); ctx.clip(); ctx.fillStyle = hi; ctx.shadowColor = hi; ctx.shadowBlur = px * 0.35; ctx.fillText(r, W / 2, y); ctx.restore(); }
+    } else if (st === "neon") {
+      ctx.fillStyle = "#ffffff"; ctx.shadowColor = hi;
+      ctx.shadowBlur = px * 0.6; ctx.fillText(r, W / 2, y); ctx.shadowBlur = px * 0.25; ctx.fillText(r, W / 2, y);
+    } else if (st === "pop") {
+      ctx.lineJoin = "round"; ctx.lineWidth = px * 0.16; ctx.strokeStyle = "rgba(0,0,0,.85)"; ctx.strokeText(r, W / 2, y);
+      ctx.fillStyle = hi; ctx.fillText(r, W / 2, y);
+    } else {
+      ctx.shadowColor = "rgba(0,0,0,.75)"; ctx.shadowBlur = px * 0.3; ctx.fillStyle = tc; ctx.fillText(r, W / 2, y);
+    }
+  });
+  ctx.restore();
+  // next line, dim
+  if ($("subNext").checked && i + 1 < lyr.length && lyr[i + 1].text && (st === "karaoke" || st === "simple" || st === "box")) {
+    ctx.save(); ctx.font = fnt(px * 0.62, 500); ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillStyle = tc; ctx.globalAlpha = 0.5; ctx.shadowColor = "rgba(0,0,0,.7)"; ctx.shadowBlur = px * 0.2;
+    const ny = pos === "top" ? y0 + blockH + px * 0.3 : pos === "middle" ? y0 + blockH + px * 0.3 : y0 + blockH + px * 0.15;
+    if (ny < H - S * 0.09) { const nr = wrapRows(lyr[i + 1].text, W * 0.8); ctx.fillText(nr[0] + (nr.length > 1 ? " …" : ""), W / 2, ny); }
+    ctx.restore();
+  }
+}
+
+["blur","dim"].forEach(id => $(id).oninput = () => { $(id + "Val").textContent = $(id).value; bgCache = null; drawStatic(); });
+["vizColor","vizColor2","vizPos","title","artist","textColor","showProgress"].forEach(id => $(id).addEventListener("input", drawStatic));
+
+function applySize() {
+  const s = SIZES.find(x => x[0] === state.size);
+  cv.width = s[1]; cv.height = s[2]; bgCache = null; drawStatic();
+}
+
+// ---------- file inputs ----------
+function wireDrop(dropId, inputId, handler) {
+  const drop = $(dropId), input = $(inputId);
+  input.onchange = () => input.files[0] && handler(input.files[0]);
+  drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("over"); });
+  drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+  drop.addEventListener("drop", e => { e.preventDefault(); drop.classList.remove("over"); e.dataTransfer.files[0] && handler(e.dataTransfer.files[0]); });
+}
+wireDrop("audioDrop", "audioFile", f => {
+  if (f.type.startsWith("image")) return setStatus("Yeh photo hai. Audio wale dabbe mein gaana chuno, photo neeche Background mein.", "err");
+  $("previewBtn").disabled = $("renderBtn").disabled = true;
+  setStatus("Audio load ho raha hai…");
+  stopAll();
+  if (state.audioUrl) URL.revokeObjectURL(state.audioUrl);
+  state.audioUrl = URL.createObjectURL(f);
+  state.audioName = f.name.replace(/\.[^.]+$/, "");
+  player.src = state.audioUrl;
+  $("audioLabel").innerHTML = `<strong>${escapeHtml(f.name)}</strong><small>badalne ke liye click karo</small>`;
+  if (!$("title").value) $("title").value = state.audioName.slice(0, 80);
+  player.onloadedmetadata = () => {
+    setStatus(`Audio ready — ${fmt(player.duration)}. Preview dekho ya "Video banao" dabao.`, "ok");
+    $("previewBtn").disabled = $("renderBtn").disabled = false;
+    parseLyrics(); drawStatic();
+  };
+  player.onerror = () => { $("previewBtn").disabled = $("renderBtn").disabled = true; setStatus("Yeh file chal nahi pa rahi. MP3 ya M4A file try karo.", "err"); };
+});
+wireDrop("imgDrop", "imgFile", f => {
+  if (!f.type.startsWith("image")) return setStatus("Yeh image file nahi hai.", "err");
+  const img = new Image();
+  img.onload = () => { state.img = img; bgCache = null; $("imgLabel").innerHTML = `<strong>${escapeHtml(f.name)}</strong>`; drawStatic(); };
+  img.src = URL.createObjectURL(f);
+});
+$("imgClear").onclick = () => { state.img = null; bgCache = null; $("imgFile").value = ""; $("imgLabel").textContent = "Photo / cover image (optional)"; drawStatic(); };
+
+// ---------- audio graph ----------
+let actx, analyser, srcNode, streamDest, freq, wave;
+function ensureAudio() {
+  if (actx) return;
+  actx = new (window.AudioContext || window.webkitAudioContext)();
+  analyser = actx.createAnalyser();
+  analyser.fftSize = 2048;
+  analyser.smoothingTimeConstant = 0.8;
+  srcNode = actx.createMediaElementSource(player);
+  streamDest = actx.createMediaStreamDestination();
+  srcNode.connect(analyser);
+  analyser.connect(actx.destination);
+  analyser.connect(streamDest);
+  freq = new Uint8Array(analyser.frequencyBinCount);
+  wave = new Uint8Array(analyser.fftSize);
+}
+
+// ---------- drawing ----------
+let bgCache = null;
+function buildBackground() {
+  const W = cv.width, H = cv.height;
+  const c = document.createElement("canvas"); c.width = W; c.height = H;
+  const g = c.getContext("2d");
+  if (state.img) {
+    const im = state.img, r = Math.max(W / im.width, H / im.height);
+    const w = im.width * r, h = im.height * r;
+    const blur = +$("blur").value * (W / 1280);
+    if (blur > 0) { g.filter = `blur(${blur}px)`; }
+    // overdraw slightly to hide blurred edges
+    const pad = blur * 2;
+    g.drawImage(im, (W - w) / 2 - pad, (H - h) / 2 - pad, w + pad * 2, h + pad * 2);
+    g.filter = "none";
+  } else {
+    const [a, b] = GRADIENTS[state.grad];
+    const lg = g.createLinearGradient(0, 0, W, H);
+    lg.addColorStop(0, a); lg.addColorStop(1, b);
+    g.fillStyle = lg; g.fillRect(0, 0, W, H);
+  }
+  g.fillStyle = `rgba(0,0,0,${+$("dim").value / 100})`;
+  g.fillRect(0, 0, W, H);
+  bgCache = c;
+}
+
+let peak = 0, particles = [];
+function draw(live) {
+  const W = cv.width, H = cv.height, S = Math.min(W, H);
+  if (!bgCache) buildBackground();
+  // gentle bass "pulse" zoom on background
+  let bass = 0;
+  if (live && analyser) {
+    analyser.getByteFrequencyData(freq);
+    analyser.getByteTimeDomainData(wave);
+    for (let i = 2; i < 12; i++) bass += freq[i];
+    bass /= 10 * 255;
+  } else {
+    freq && freq.fill(0); wave && wave.fill(128);
+  }
+  peak = Math.max(bass, peak * 0.92);
+  const z = 1 + peak * 0.03;
+  ctx.save();
+  ctx.translate(W / 2, H / 2); ctx.scale(z, z); ctx.translate(-W / 2, -H / 2);
+  ctx.drawImage(bgCache, 0, 0);
+  ctx.restore();
+
+  const c1 = $("vizColor").value, c2 = $("vizColor2").value;
+  const pos = $("vizPos").value;
+  const fakeFreq = !live || !freq;
+  const getF = i => fakeFreq ? (0.25 + 0.2 * Math.sin(i * 0.35)) * 255 : freq[i];
+
+  const grad = (x0, y0, x1, y1) => { const g = ctx.createLinearGradient(x0, y0, x1, y1); g.addColorStop(0, c1); g.addColorStop(1, c2); return g; };
+  let area;
+  const lyrLow = lyr.length > 0 && $("subPos").value === "bottom" && pos === "bottom";
+  if (lyrLow) area = { x: W * 0.06, y: H * 0.4, w: W * 0.88, h: H * 0.25 };
+  else if (pos === "bottom") area = { x: W * 0.06, y: H * 0.62, w: W * 0.88, h: H * 0.26 };
+  else if (pos === "center") area = { x: W * 0.1, y: H * 0.35, w: W * 0.8, h: H * 0.3 };
+  else area = { x: 0, y: H * 0.15, w: W, h: H * 0.7 };
+
+  ctx.save();
+  ctx.shadowColor = c1; ctx.shadowBlur = S * 0.02;
+  const binsUsed = 700; // focus on musical range
+  if (state.viz === "bars" || state.viz === "mirror") {
+    const n = W > H ? 64 : 40;
+    const gap = area.w / n * 0.28, bw = area.w / n - gap;
+    ctx.fillStyle = grad(area.x, 0, area.x + area.w, 0);
+    for (let i = 0; i < n; i++) {
+      const bin = Math.floor(Math.pow(i / n, 1.6) * binsUsed) + 2;
+      const v = getF(bin) / 255;
+      const h = Math.max(S * 0.006, v * area.h);
+      const x = area.x + i * (bw + gap) + gap / 2;
+      if (state.viz === "bars") roundRect(x, area.y + area.h - h, bw, h, bw / 2);
+      else { const cy = area.y + area.h / 2; roundRect(x, cy - h / 2, bw, h, bw / 2); }
+    }
+  } else if (state.viz === "wave") {
+    ctx.lineWidth = Math.max(2, S * 0.006); ctx.strokeStyle = grad(area.x, 0, area.x + area.w, 0);
+    ctx.beginPath();
+    const n = 512, cy = area.y + area.h / 2;
+    for (let i = 0; i < n; i++) {
+      const v = fakeFreq ? Math.sin(i * 0.08) * 0.15 : (wave[Math.floor(i * wave.length / n)] - 128) / 128;
+      const x = area.x + (i / (n - 1)) * area.w, y = cy + v * area.h / 2 * 1.4;
+      i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+    }
+    ctx.stroke();
+  } else if (state.viz === "circle") {
+    const cx = W / 2, cy = lyrLow ? H * 0.47 : pos === "bottom" ? H * 0.58 : H / 2;
+    const cs = lyrLow && W > H ? 0.72 : 1, r = S * 0.17 * cs * (1 + peak * 0.12), n = 120;
+    ctx.strokeStyle = grad(cx - r, cy - r, cx + r, cy + r);
+    ctx.lineWidth = Math.max(2, (2 * Math.PI * r / n) * 0.55); ctx.lineCap = "round";
+    for (let i = 0; i < n; i++) {
+      const half = i < n / 2 ? i : n - i; // symmetric
+      const bin = Math.floor(Math.pow(half / (n / 2), 1.5) * binsUsed) + 2;
+      const v = getF(bin) / 255, len = S * 0.015 + v * S * 0.16 * cs;
+      const a = (i / n) * Math.PI * 2 - Math.PI / 2;
+      ctx.beginPath();
+      ctx.moveTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+      ctx.lineTo(cx + Math.cos(a) * (r + len), cy + Math.sin(a) * (r + len));
+      ctx.stroke();
+    }
+    if (state.img) { // cover art disc in the middle
+      ctx.save(); ctx.shadowBlur = 0;
+      ctx.beginPath(); ctx.arc(cx, cy, r * 0.92, 0, Math.PI * 2); ctx.clip();
+      const im = state.img, k = Math.max(r * 1.84 / im.width, r * 1.84 / im.height);
+      ctx.drawImage(im, cx - im.width * k / 2, cy - im.height * k / 2, im.width * k, im.height * k);
+      ctx.restore();
+    }
+  } else if (state.viz === "particles") {
+    if (live && peak > 0.55 && particles.length < 160) for (let k = 0; k < 4; k++) particles.push({ a: Math.random() * 6.283, d: S * 0.12, s: S * (0.004 + Math.random() * 0.01), l: 1 });
+    const cx = W / 2, cy = lyrLow ? H * 0.47 : pos === "bottom" ? H * 0.58 : H / 2;
+    ctx.fillStyle = grad(cx - S * 0.3, cy, cx + S * 0.3, cy);
+    particles = particles.filter(p => (p.d += p.s * (1 + peak * 3), p.l -= 0.012) > 0);
+    particles.forEach(p => { ctx.globalAlpha = p.l; ctx.beginPath(); ctx.arc(cx + Math.cos(p.a) * p.d, cy + Math.sin(p.a) * p.d, S * 0.006, 0, 6.283); ctx.fill(); });
+    ctx.globalAlpha = 0.9;
+    ctx.beginPath(); ctx.arc(cx, cy, S * (0.08 + peak * 0.06), 0, 6.283); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+
+  // text
+  const title = $("title").value.trim(), artist = $("artist").value.trim();
+  ctx.fillStyle = $("textColor").value; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.shadowColor = "rgba(0,0,0,.6)"; ctx.shadowBlur = S * 0.015;
+  const ty = pos === "bottom" && !lyrLow ? (state.viz === "circle" || state.viz === "particles" ? H * 0.16 : H * 0.36) : H * 0.14;
+  if (title) { ctx.font = fnt(S * 0.07); fitText(title, W / 2, ty, W * 0.88); }
+  if (artist) { ctx.globalAlpha = 0.8; ctx.font = fnt(S * 0.038, 500); fitText(artist, W / 2, ty + S * 0.075, W * 0.85); ctx.globalAlpha = 1; }
+  ctx.shadowBlur = 0;
+  drawLyrics(player.currentTime || 0, live);
+
+  // progress bar
+  if ($("showProgress").checked) {
+    const dur = player.duration || 0, t = player.currentTime || 0;
+    const y = H - S * 0.05, x0 = W * 0.06, w = W * 0.88, h = Math.max(3, S * 0.006);
+    ctx.fillStyle = "rgba(255,255,255,.25)"; roundRect(x0, y, w, h, h / 2);
+    ctx.fillStyle = grad(x0, 0, x0 + w, 0); if (dur) roundRect(x0, y, w * Math.min(1, t / dur), h, h / 2);
+    ctx.fillStyle = "rgba(255,255,255,.85)"; ctx.font = `500 ${Math.round(S * 0.025)}px system-ui,sans-serif`;
+    ctx.textAlign = "left"; ctx.fillText(fmt(t), x0, y - S * 0.025);
+    ctx.textAlign = "right"; ctx.fillText(dur ? fmt(dur) : "0:00", x0 + w, y - S * 0.025);
+  }
+}
+function roundRect(x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); ctx.fill(); }
+function fitText(t, x, y, max) { let s = t; while (ctx.measureText(s).width > max && s.length > 3) s = s.slice(0, -2); if (s !== t) s = s.slice(0, -1) + "…"; ctx.fillText(s, x, y); }
+function drawStatic() { if (!running) draw(false); }
+
+// ---------- loop ----------
+let running = false, rafId = 0, timerId = 0;
+function loop() {
+  draw(true);
+  if (recording && player.duration) $("progress").style.width = (100 * player.currentTime / player.duration).toFixed(1) + "%";
+  rafId = requestAnimationFrame(loop);
+}
+function startLoop() {
+  running = true; cancelAnimationFrame(rafId); loop();
+  // keep frames coming if the tab is hidden (rAF pauses there)
+  clearInterval(timerId);
+  timerId = setInterval(() => { if (document.hidden && running) draw(true); }, 1000 / 30);
+}
+function stopLoop() { running = false; cancelAnimationFrame(rafId); clearInterval(timerId); drawStatic(); }
+
+// ---------- preview ----------
+$("previewBtn").onclick = async () => {
+  ensureAudio(); await actx.resume();
+  hideResult();
+  player.currentTime = 0; await player.play();
+  startLoop(); $("stopBtn").disabled = false; setStatus("Preview chal raha hai…");
+};
+$("stopBtn").onclick = () => stopAll(true);
+player.addEventListener("ended", () => { if (syncing) return finishSync(); if (!recording) { stopLoop(); $("stopBtn").disabled = true; setStatus("Preview khatam."); } });
+
+// ---------- render ----------
+let recording = false, recorder = null, cancelled = false, convertedOk = false;
+function pickMime() {
+  const opts = ["video/mp4;codecs=avc1.42E01E,mp4a.40.2", "video/mp4;codecs=avc1,mp4a",
+    "video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm", "video/mp4"];
+  return opts.find(m => window.MediaRecorder && MediaRecorder.isTypeSupported(m)) || "";
+}
+$("renderBtn").onclick = async () => {
+  if (!window.MediaRecorder || !cv.captureStream) return setStatus("Yeh browser video recording support nahi karta. Chrome, Edge ya Firefox use karo.", "err");
+  stopAll();
+  ensureAudio(); await actx.resume();
+  hideResult();
+  await loadFont(); parseLyrics();
+  const fps = +$("fps").value;
+  const vStream = cv.captureStream(fps);
+  const stream = new MediaStream([...vStream.getVideoTracks(), ...streamDest.stream.getAudioTracks()]);
+  const mime = pickMime();
+  const px = cv.width * cv.height;
+  const vbr = Math.round(px * fps * 0.12); // ~ 3.3 Mbps @ 720p30
+  try { recorder = new MediaRecorder(stream, { mimeType: mime || undefined, videoBitsPerSecond: vbr, audioBitsPerSecond: 192000 }); }
+  catch (e) { recorder = new MediaRecorder(stream); }
+  const chunks = [];
+  recorder.ondataavailable = e => e.data.size && chunks.push(e.data);
+  recorder.onstop = async () => {
+    recording = false; stopLoop();
+    stream.getVideoTracks().forEach(t => t.stop());
+    if (cancelled) { setBusy(false); $("progress").style.width = "0"; return setStatus("Video banana cancel kiya."); }
+    const full = recorder.mimeType || mime || "video/webm";
+    let type = full.split(";")[0];
+    let blob = new Blob(chunks, { type });
+    convertedOk = /mp4/.test(type);
+    setBusy(false);
+    const ext = type.includes("mp4") ? "mp4" : "webm";
+    const url = URL.createObjectURL(blob);
+    $("outVideo").src = url;
+    const name = (($("title").value.trim() || state.audioName || "video").replace(/[^\wऀ-ॿ\- ]+/g, "").trim() || "video") + "." + ext;
+    $("dlLink").href = url; $("dlLink").download = name;
+    $("dlLink").textContent = `⬇ Download (${ext.toUpperCase()}, ${(blob.size / 1048576).toFixed(1)} MB)`;
+    $("result").style.display = "flex"; $("progress").style.width = "100%";
+    setStatus(convertedOk ? "Video taiyaar hai! 🎉 (MP4 — YouTube, Instagram, WhatsApp sab par chalega)"
+      : `Video taiyaar hai! 🎉 (WEBM — YouTube par chalega; MP4 ke liye Chrome/Edge use karo)`, "ok");
+  };
+  cancelled = false; recording = true; setBusy(true);
+  player.currentTime = 0;
+  player.onended = () => { if (recording && recorder.state !== "inactive") setTimeout(() => recorder.stop(), 250); };
+  recorder.start(1000);
+  startLoop();
+  await player.play();
+  setStatus(`Video ban rahi hai… (${fmt(player.duration)} lagega) — tab band mat karna.`);
+};
+
+function setBusy(b) {
+  $("renderBtn").disabled = b; $("previewBtn").disabled = b; $("stopBtn").disabled = !b;
+  $("renderBtn").textContent = b ? "⏳ Video ban rahi hai…" : "🎬 Video banao";
+  document.querySelectorAll("#controls input,#controls select,#controls button,#controls textarea").forEach(el => el.disabled = b);
+}
+function stopAll(user) {
+  if (syncing) return finishSync();
+  if (recording && recorder && recorder.state !== "inactive") { cancelled = !!user; recorder.stop(); }
+  player.pause(); stopLoop(); $("stopBtn").disabled = true;
+  if (user && !recording) setStatus("Ruk gaya.");
+}
+function hideResult() { $("result").style.display = "none"; $("progress").style.width = "0"; }
+function setStatus(t, cls) { const s = $("status"); s.textContent = t; s.className = "status" + (cls ? " " + cls : ""); }
+function fmt(s) { if (!isFinite(s)) return "0:00"; s = Math.floor(s); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(x).padStart(2, "0"); }
+function escapeHtml(s) { return s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+
+applySize();
+})();
+</script>
+</body>
+</html>
