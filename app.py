@@ -129,6 +129,36 @@ def index():
     return send_from_directory(app.static_folder, "index.html")
 
 
+@app.route("/audio-to-video")
+def audio_to_video():
+    """Standalone in-browser Audio -> Video maker (no upload; renders client-side)."""
+    return send_from_directory(BASE, "audio_to_video.html")
+
+
+@app.route("/api/to-mp4", methods=["POST"])
+def to_mp4():
+    """Convert a browser-recorded clip (WebM / VP9 MP4) to a universal H.264+AAC MP4."""
+    import io, shutil, subprocess, tempfile
+    f = request.files.get("file")
+    if not f:
+        abort(400)
+    tmp = tempfile.mkdtemp(prefix="a2v_")
+    try:
+        src, dst = os.path.join(tmp, "in"), os.path.join(tmp, "out.mp4")
+        f.save(src)
+        r = subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", src,
+                            "-c:v", "libx264", "-preset", "veryfast", "-crf", "22", "-pix_fmt", "yuv420p",
+                            "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", dst],
+                           capture_output=True, timeout=1800)
+        if r.returncode != 0 or not os.path.exists(dst):
+            return jsonify(error="convert failed"), 500
+        with open(dst, "rb") as fh:
+            data = io.BytesIO(fh.read())
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    return send_file(data, mimetype="video/mp4", as_attachment=True, download_name="video.mp4")
+
+
 @app.route("/api/config")
 def config():
     u = uid()
