@@ -1,0 +1,13 @@
+import soundfile as sf, numpy as np
+from kokoro_onnx import Kokoro
+k = Kokoro("kokoro-v1.0.onnx", "voices-v1.0.bin")
+segs = ["बिज़नेस को दें नई उड़ान।",
+"पचास लाख से लेकर, दो सौ करोड़ तक की फंडिंग,",
+"वाइड लेंडिंग नेटवर्क, और संपूर्ण भारत में सर्विस।",
+"आज ही संपर्क करें — क्रेडलो, आपके ग्रोथ का साथी!"]
+for i,t in enumerate(segs):
+  for sp in (1.0,1.08,1.15):
+    s, sr = k.create(t, voice='hm_omega', speed=sp, lang="hi")
+    a=np.abs(s); idx=np.where(a>0.01)[0]; s=s[max(idx[0]-200,0):idx[-1]+2000]
+    sf.write(f"v3_{i}_{sp}.wav", s, sr); print(i, sp, round(len(s)/sr,2))
+  print(k.tokenizer.phonemize(t, lang="hi"))
