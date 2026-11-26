@@ -144,8 +144,8 @@ summary{cursor:pointer;color:var(--text);font-size:14px}
     </div>
     <label for="capModel">AI model</label>
     <select id="capModel">
-      <option value="fast">Tez — ~80 MB (phone ke liye)</option>
-      <option value="best">Behtar — ~250 MB (zyada sahi, dheema)</option>
+      <option value="fast">Tez — ~80 MB, Hindi ko Roman (Hinglish) mein likhta hai</option>
+      <option value="best">Behtar — ~250 MB, देवनागरी mein, lekin bahut dheema (computer ke liye)</option>
     </select>
     <button class="primary" id="capBtn" type="button" disabled>✨ Auto caption banao</button>
     <div class="bar" style="margin-top:8px"><div id="capProg"></div></div>
@@ -302,14 +302,18 @@ async function decode16k(file) {
   return (await oac.startRendering()).getChannelData(0);
 }
 const JUNK = /^[\s\[\(♪♫*#~-]|^(music|संगीत|applause)$/i;
-function cleanWords(words) {
+function cleanWords(words, dur) {
   const out = [];
   words.forEach(x => {
     const w = x.w.replace(/[♪♫]/g, "").trim();
     if (!w || JUNK.test(w) || !/[\p{L}\p{N}]/u.test(w)) return;
     const prev = out.slice(-4);
     if (prev.length === 4 && prev.every(p => p.w === w)) return; // looping hallucination
-    out.push({ w, t: x.t, e: Math.min(Math.max(x.e, x.t + 0.12), x.t + 2) });
+    // Whisper often stretches the first word after a pause back to the end of the previous word;
+    // a sung word rarely needs more than ~1.2 s before its end, so pull such starts forward.
+    const e = Math.min(Math.max(x.e, x.t + 0.12), dur || 1e9), t = e - x.t > 1.5 ? e - 1.2 : x.t;
+    if (dur && t >= dur - 0.3) return; // nothing can start once the audio has ended
+    out.push({ w, t, e: Math.min(e, t + 2) });
   });
   return out;
 }
@@ -323,7 +327,8 @@ function groupLines(words) {
     } else { cur.text += " " + x.w; cur.e = x.e; cur.words.push(x); }
   });
   lines.forEach((L, i) => { const nx = lines[i + 1]; L.end = Math.min(L.e + 0.6, nx ? nx.t : L.e + 0.6); delete L.e; });
-  return lines;
+  // drop lines that are one word looped ("अपने अपने अपने अपने") — a typical Whisper hallucination on music
+  return lines.filter(L => !(L.words.length >= 3 && new Set(L.words.map(x => x.w.replace(/[^\p{L}\p{N}]/gu, ""))).size === 1));
 }
 function lrcTime(t) { const m = Math.floor(t / 60), s = t - m * 60; return `[${String(m).padStart(2, "0")}:${s.toFixed(1).padStart(4, "0")}]`; }
 function writeEditor() { $("capEdit").value = lyr.map(L => lrcTime(L.t) + " " + L.text).join("\n"); }
@@ -361,23 +366,29 @@ $("capBtn").onclick = async () => {
     const audio = await decode16k(state.file);
     const SR = 16000, WIN = 30 * SR, lang = $("capLang").value || undefined, words = [];
     const t0 = Date.now();
-    for (let s = 0; s < audio.length; s += WIN) {
-      const part = audio.subarray(s, Math.min(audio.length, s + WIN));
-      if (part.length < SR * 0.6) break;
+    // Sequential long-form: transcribe 30 s, then continue from where the words stopped.
+    // Whisper sometimes ends a window early (after a pause or "।"), and words get cut at window edges.
+    let s = 0, guard = 0;
+    while (s < audio.length - SR * 0.6 && guard++ < 400) {
+      const part = audio.subarray(s, Math.min(audio.length, s + WIN)), full = part.length === WIN, dur = part.length / SR;
       let rms = 0; for (let k = 0; k < part.length; k += 32) rms += part[k] * part[k];
+      let next = s + WIN;
       if (Math.sqrt(rms / (part.length / 32)) > 0.004) {
         const out = await asr(part, { language: lang, task: "transcribe", return_timestamps: "word" });
-        (out.chunks || []).forEach(c => {
-          const a = c.timestamp[0], b = c.timestamp[1] == null ? a + 0.4 : c.timestamp[1];
-          words.push({ w: (c.text || "").trim(), t: a + s / SR, e: b + s / SR });
-        });
+        let cs = (out.chunks || []).map(c => ({ w: (c.text || "").trim(), a: c.timestamp[0], b: c.timestamp[1] == null ? c.timestamp[0] + 0.4 : c.timestamp[1] }));
+        if (full && cs.length > 1 && cs[cs.length - 1].b > dur - 1) cs.pop(); // last word may be cut: redo it next round
+        cs.forEach(c => words.push({ w: c.w, t: c.a + s / SR, e: c.b + s / SR }));
+        const lastEnd = cs.length ? cs[cs.length - 1].b : 0;
+        if (cs.length && lastEnd < dur - 2 && lastEnd > 1) next = s + Math.round(lastEnd * SR); // stopped early: continue from there
+        else if (cs.length && full) next = s + Math.round(Math.max(lastEnd, 5) * SR);
       }
-      const done = Math.min(1, (s + WIN) / audio.length);
+      s = Math.max(next, s + SR); // always move forward
+      const done = Math.min(1, s / audio.length);
       const el = (Date.now() - t0) / 1000, left = done > 0.05 ? el / done - el : 0;
       prog(0.3 + 0.7 * done);
       hint(`Caption ban rahe hain… ${Math.round(done * 100)}%` + (left > 3 ? ` (lagbhag ${Math.ceil(left / 60)} min baaki)` : ""));
     }
-    lyr = groupLines(cleanWords(words));
+    lyr = groupLines(cleanWords(words, audio.length / SR));
     writeEditor(); prog(1); drawStatic();
     if (lyr.length) { hint(`✓ ${lyr.length} caption lines ban gayi. Preview dekho. Koi shabd galat ho to "✏️ Galat shabd theek karo" kholo.`, "ok"); $("capEditBox").open = false; }
     else hint("Is gaane mein koi shabd samajh nahi aaye. Bhasha sahi chuni hai? 'Behtar' model try karo.", "err");
