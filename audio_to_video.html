@@ -56,15 +56,13 @@ canvas{max-width:100%;max-height:70vh;display:block}
 .result video{width:100%;border-radius:12px;background:#000}
 .result a{display:block;text-align:center;text-decoration:none}
 .hint{font-size:12px;color:var(--muted);margin-top:6px}
-textarea{width:100%;min-height:150px;padding:9px 10px;border-radius:9px;border:1px solid var(--line);background:#11141a;color:var(--text);font:14px/1.5 system-ui,sans-serif;resize:vertical}
+textarea{width:100%;min-height:180px;margin-top:8px;padding:9px 10px;border-radius:9px;border:1px solid var(--line);background:#11141a;color:var(--text);font:14px/1.5 system-ui,sans-serif;resize:vertical}
 .btnrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
 .btnrow .ghost{flex:1 1 auto;font-size:13px}
+details{margin-top:10px}
+summary{cursor:pointer;color:var(--text);font-size:14px}
 .preset{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:96px;padding:8px 11px;border-radius:12px}
 .preset small{color:var(--muted);font-size:11px}
-#tapBox{display:none;flex-direction:column;gap:8px;background:var(--panel);border:1px solid var(--accent);border-radius:14px;padding:12px}
-#tapBox .now{font-size:16px;font-weight:600}
-#tapBox .nxt{font-size:13px;color:var(--muted)}
-#tapBtn{padding:18px;font-size:18px}
 .controls{display:flex;gap:8px;flex-wrap:wrap}
 </style>
 </head>
@@ -134,16 +132,31 @@ textarea{width:100%;min-height:150px;padding:9px 10px;border-radius:9px;border:1
       <option value="system">Phone ka font</option>
     </select>
 
-    <h2>6. Lyrics / Subtitle</h2>
-    <label for="lyrics">Lyrics yahan paste karo (har line alag)</label>
-    <textarea id="lyrics" placeholder="Pehli line&#10;Doosri line&#10;Teesri line&#10;&#10;Ya timing ke saath (LRC):&#10;[00:12.50] Pehli line&#10;[00:17.00] Doosri line"></textarea>
-    <div class="btnrow">
-      <button class="ghost" id="syncBtn" type="button">👆 Tap se sync karo</button>
-      <button class="ghost" id="autoBtn" type="button">⏱ Auto timing</button>
-      <label class="ghost" style="margin:0;text-align:center;cursor:pointer">📄 LRC/SRT file<input type="file" id="lrcFile" accept=".lrc,.srt,.txt,text/plain" style="display:none"></label>
+    <h2>6. Auto Caption (gaane se apne aap)</h2>
+    <div class="row">
+      <div><label for="capLang">Gaane ki bhasha</label>
+        <select id="capLang">
+          <option value="hindi">हिन्दी</option><option value="english">English</option><option value="punjabi">ਪੰਜਾਬੀ</option>
+          <option value="bengali">বাংলা</option><option value="marathi">मराठी</option><option value="urdu">اردو</option><option value="">Auto</option>
+        </select></div>
+      <div><label for="capScript">Likhawat</label>
+        <select id="capScript"><option value="native">देवनागरी / original</option><option value="roman">Roman (Hinglish)</option></select></div>
     </div>
-    <div class="hint" id="lyrHint">Tap se sync: gaana chalega, har line shuru hote hi bada button dabao. Timing apne aap lyrics mein likh di jayegi.</div>
-    <label>Subtitle style</label>
+    <label for="capModel">AI model</label>
+    <select id="capModel">
+      <option value="fast">Tez — ~80 MB (phone ke liye)</option>
+      <option value="best">Behtar — ~250 MB (zyada sahi, dheema)</option>
+    </select>
+    <button class="primary" id="capBtn" type="button" disabled>✨ Auto caption banao</button>
+    <div class="bar" style="margin-top:8px"><div id="capProg"></div></div>
+    <div class="hint" id="capHint">Pehle audio chuno, phir yeh button dabao. AI gaana sunke shabd aur har shabd ka time khud nikalega. Pehli baar AI model download hoga.</div>
+    <details id="capEditBox">
+      <summary>✏️ Galat shabd theek karo</summary>
+      <textarea id="capEdit" spellcheck="false"></textarea>
+      <div class="hint">Har line: [minute:second] shabd. Sirf shabd badlo, time waise hi rehne do.</div>
+    </details>
+    <label><input type="checkbox" id="capOn" checked> Captions video mein dikhao</label>
+    <label>Caption style</label>
     <div class="chips" id="subChips"></div>
     <div class="row">
       <div><label>Highlight rang</label><input type="color" id="subColor" value="#fde047"></div>
@@ -151,7 +164,7 @@ textarea{width:100%;min-height:150px;padding:9px 10px;border-radius:9px;border:1
         <select id="subPos"><option value="bottom">Neeche</option><option value="middle">Beech</option><option value="top">Upar</option></select>
       </div>
     </div>
-    <label>Subtitle size: <span id="subSizeVal">6</span></label>
+    <label>Caption size: <span id="subSizeVal">6</span></label>
     <input type="range" id="subSize" min="3" max="11" step="0.5" value="6">
     <label><input type="checkbox" id="subNext" checked> Agli line bhi halki dikhao</label>
 
@@ -167,12 +180,6 @@ textarea{width:100%;min-height:150px;padding:9px 10px;border-radius:9px;border:1
 
   <section class="stage">
     <div class="canvasWrap"><canvas id="cv" width="1280" height="720"></canvas></div>
-    <div id="tapBox">
-      <div class="now" id="tapNow"></div>
-      <div class="nxt" id="tapNext"></div>
-      <button class="primary" id="tapBtn" type="button">👆 Yeh line shuru — TAP</button>
-      <button class="ghost" id="tapDone" type="button">✓ Bas, sync khatam</button>
-    </div>
     <div class="controls">
       <button class="ghost" id="previewBtn" type="button" disabled>▶ Preview</button>
       <button class="ghost" id="stopBtn" type="button" disabled>■ Stop</button>
@@ -204,16 +211,16 @@ const GRADIENTS = [
 const VIZ = [["bars","Bars"],["mirror","Mirror bars"],["wave","Waveform"],["circle","Circle"],["particles","Pulse"],["none","Kuch nahi"]];
 const SIZES = [["16:9",1280,720,"YouTube 16:9"],["9:16",720,1280,"Reels/Shorts 9:16"],["1:1",1080,1080,"Square 1:1"],["4:5",1080,1350,"Insta 4:5"]];
 
-const SUBS = [["karaoke","Karaoke"],["simple","Simple"],["box","Box"],["neon","Neon"],["pop","Pop"]];
+const SUBS = [["karaoke","🎤 Karaoke"],["word","💥 Ek-ek shabd"],["highlight","🟨 Highlight"],["typewriter","⌨️ Typewriter"],["pop","🎈 Pop"],["neon","✨ Neon"],["box","⬛ Box"],["simple","Aa Simple"]];
 const FONT_W = { "Pacifico": 400, "Yatra One": 400 };
 const PRESETS = [
   { id: "bhakti", name: "🙏 Bhakti", note: "Kesariya, sunehra", grad: 4, viz: "circle", c1: "#fde68a", c2: "#f97316", font: "Yatra One", sub: "karaoke", subColor: "#fde047", text: "#fff7ed" },
   { id: "romantic", name: "💕 Romantic", note: "Gulabi, soft", grad: 2, viz: "mirror", c1: "#f9a8d4", c2: "#c084fc", font: "Kalam", sub: "neon", subColor: "#f472b6", text: "#ffffff" },
-  { id: "party", name: "🎉 Party", note: "Tez, chamakdaar", grad: 6, viz: "bars", c1: "#22d3ee", c2: "#a3e635", font: "Baloo 2", sub: "pop", subColor: "#facc15", text: "#ffffff" },
+  { id: "party", name: "🎉 Party", note: "Tez, chamakdaar", grad: 6, viz: "bars", c1: "#22d3ee", c2: "#a3e635", font: "Baloo 2", sub: "word", subColor: "#facc15", text: "#ffffff" },
   { id: "lofi", name: "🌙 Lo-fi", note: "Shaant, dark", grad: 5, viz: "wave", c1: "#e2e8f0", c2: "#94a3b8", font: "Mukta", sub: "box", subColor: "#e2e8f0", text: "#e2e8f0" },
   { id: "sad", name: "💧 Sad", note: "Neela, dheema", grad: 1, viz: "particles", c1: "#93c5fd", c2: "#6366f1", font: "Poppins", sub: "simple", subColor: "#bfdbfe", text: "#dbeafe" },
 ];
-const state = { grad: 0, viz: "bars", size: "16:9", sub: "karaoke", img: null, audioUrl: null, audioName: "" };
+const state = { grad: 0, viz: "bars", size: "16:9", sub: "karaoke", img: null, file: null, audioUrl: null, audioName: "" };
 
 // ---------- UI builders ----------
 GRADIENTS.forEach((g, i) => {
@@ -263,145 +270,243 @@ function loadFont() {
 $("font").addEventListener("input", () => { loadFont().then(drawStatic); drawStatic(); });
 loadFont().then(() => drawStatic());
 
-// ---------- lyrics ----------
-let lyr = []; // [{t, text}] sorted
-function lrcTime(t) { const m = Math.floor(t / 60), s = t - m * 60; return `[${String(m).padStart(2, "0")}:${s.toFixed(2).padStart(5, "0")}]`; }
-function plainLines() { return $("lyrics").value.split(/\r?\n/).map(l => l.replace(/\[[^\]]*\]/g, "").trim()).filter(Boolean); }
-function parseLyrics() {
-  const out = []; const plain = [];
-  $("lyrics").value.split(/\r?\n/).forEach(l => {
-    const tags = [...l.matchAll(/\[(\d+):(\d+(?:[.:]\d+)?)\]/g)];
-    const text = l.replace(/\[[^\]]*\]/g, "").trim();
-    if (tags.length) tags.forEach(x => out.push({ t: +x[1] * 60 + parseFloat(x[2].replace(":", ".")), text }));
-    else if (text) plain.push(text);
+// ---------- auto captions (Whisper, runs in the browser) ----------
+const TJS_URL = "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1/dist/transformers.min.js";
+const ASR_MODELS = { fast: "onnx-community/whisper-base_timestamped", best: "onnx-community/whisper-small_timestamped" };
+let lyr = []; // caption lines: [{t, end, text, words:[{w, t, e}]}]
+const asrCache = {};
+let capBusy = false;
+
+async function getAsr(kind, onFile) {
+  if (asrCache[kind]) return asrCache[kind];
+  const T = await import(TJS_URL);
+  T.env.allowLocalModels = false;
+  try { T.env.backends.onnx.wasm.proxy = true; } catch (e) { }
+  const files = {};
+  asrCache[kind] = await T.pipeline("automatic-speech-recognition", ASR_MODELS[kind], {
+    dtype: "q8", device: "wasm",
+    progress_callback: p => {
+      if (p.status === "progress" && p.total) { files[p.file] = [p.loaded, p.total]; }
+      const v = Object.values(files); if (!v.length) return;
+      const l = v.reduce((a, b) => a + b[0], 0), tt = v.reduce((a, b) => a + b[1], 0);
+      onFile(l, tt);
+    },
   });
-  if (out.length) lyr = out.sort((a, b) => a.t - b.t);
-  else if (plain.length) { const d = player.duration || plain.length * 4; lyr = plain.map((text, i) => ({ t: d * i / plain.length, text })); }
-  else lyr = [];
-  const h = $("lyrHint");
-  if (!lyr.length) h.textContent = "Tap se sync: gaana chalega, har line shuru hote hi bada button dabao. Timing apne aap lyrics mein likh di jayegi.";
-  else if (out.length) h.textContent = `✓ ${lyr.length} lines timing ke saath ready.`;
-  else h.textContent = `${lyr.length} lines — abhi barabar baant kar dikhayi jayengi. Sahi timing ke liye "Tap se sync karo" dabao.`;
+  return asrCache[kind];
 }
-$("lyrics").addEventListener("input", () => { parseLyrics(); drawStatic(); });
-$("subSize").addEventListener("input", () => { $("subSizeVal").textContent = $("subSize").value; drawStatic(); });
-["subColor","subPos","subNext"].forEach(id => $(id).addEventListener("input", drawStatic));
-$("autoBtn").onclick = () => {
-  const lines = plainLines(); if (!lines.length) return setStatus("Pehle lyrics likho ya paste karo.", "err");
-  if (!player.duration) return setStatus("Pehle audio file chuno, phir auto timing.", "err");
-  const d = player.duration;
-  $("lyrics").value = lines.map((l, i) => lrcTime(d * i / lines.length) + " " + l).join("\n");
-  parseLyrics(); drawStatic(); setStatus("Auto timing lag gayi. Har line ka time [mm:ss] mein badal bhi sakte ho.", "ok");
-};
-$("lrcFile").onchange = async () => {
-  const f = $("lrcFile").files[0]; if (!f) return;
-  let txt = await f.text();
-  if (/-->/.test(txt)) { // SRT -> LRC
-    txt = txt.replace(/\r/g, "").split(/\n\s*\n/).map(b => {
-      const m = b.match(/(\d+):(\d+):(\d+)[,.](\d+)\s*-->/); if (!m) return "";
-      const text = b.split("\n").slice(b.split("\n").findIndex(x => x.includes("-->")) + 1).join(" ").replace(/<[^>]+>/g, "").trim();
-      return lrcTime(+m[1] * 3600 + +m[2] * 60 + +m[3] + +("0." + m[4])) + " " + text;
-    }).filter(Boolean).join("\n");
+async function decode16k(file) {
+  const AC = window.AudioContext || window.webkitAudioContext;
+  const ac = new AC(); const ab = await ac.decodeAudioData(await file.arrayBuffer()); try { ac.close(); } catch (e) { }
+  const oac = new OfflineAudioContext(1, Math.max(1, Math.ceil(ab.duration * 16000)), 16000);
+  const src = oac.createBufferSource(); src.buffer = ab; src.connect(oac.destination); src.start();
+  return (await oac.startRendering()).getChannelData(0);
+}
+const JUNK = /^[\s\[\(♪♫*#~-]|^(music|संगीत|applause)$/i;
+function cleanWords(words) {
+  const out = [];
+  words.forEach(x => {
+    const w = x.w.replace(/[♪♫]/g, "").trim();
+    if (!w || JUNK.test(w) || !/[\p{L}\p{N}]/u.test(w)) return;
+    const prev = out.slice(-4);
+    if (prev.length === 4 && prev.every(p => p.w === w)) return; // looping hallucination
+    out.push({ w, t: x.t, e: Math.min(Math.max(x.e, x.t + 0.12), x.t + 2) });
+  });
+  return out;
+}
+function groupLines(words) {
+  const maxC = cv.width > cv.height ? 36 : 22, lines = [];
+  let cur = null;
+  words.forEach((x, k) => {
+    const prevW = k ? words[k - 1].w : "";
+    if (!cur || x.t - cur.e > 0.9 || (cur.text + " " + x.w).length > maxC || /[.!?।,]$/.test(prevW)) {
+      cur = { t: x.t, e: x.e, text: x.w, words: [x] }; lines.push(cur);
+    } else { cur.text += " " + x.w; cur.e = x.e; cur.words.push(x); }
+  });
+  lines.forEach((L, i) => { const nx = lines[i + 1]; L.end = Math.min(L.e + 0.6, nx ? nx.t : L.e + 0.6); delete L.e; });
+  return lines;
+}
+function lrcTime(t) { const m = Math.floor(t / 60), s = t - m * 60; return `[${String(m).padStart(2, "0")}:${s.toFixed(1).padStart(4, "0")}]`; }
+function writeEditor() { $("capEdit").value = lyr.map(L => lrcTime(L.t) + " " + L.text).join("\n"); }
+function readEditor() {
+  const rows = [];
+  $("capEdit").value.split(/\r?\n/).forEach(l => {
+    const m = l.match(/^\s*\[(\d+):(\d+(?:\.\d+)?)\]\s*(.*)$/); if (!m) return;
+    const text = m[3].trim(); if (text) rows.push({ t: +m[1] * 60 + parseFloat(m[2]), text });
+  });
+  rows.sort((a, b) => a.t - b.t);
+  lyr = rows.map((r, i) => {
+    const old = lyr.find(L => Math.abs(L.t - r.t) < 0.06 && L.text === r.text);
+    if (old) return old;
+    const prev = lyr.find(L => Math.abs(L.t - r.t) < 0.06);
+    const end = prev ? prev.end : Math.min(rows[i + 1] ? rows[i + 1].t : r.t + 4, r.t + 0.45 * r.text.length + 0.8);
+    const ws = r.text.split(/\s+/), tot = ws.reduce((a, w) => a + w.length + 1, 0);
+    let acc = 0;
+    return { t: r.t, end, text: r.text, words: ws.map(w => { const a = r.t + (end - r.t) * acc / tot; acc += w.length + 1; return { w, t: a, e: r.t + (end - r.t) * acc / tot }; }) };
+  });
+}
+let edTimer = 0;
+$("capEdit").addEventListener("input", () => { clearTimeout(edTimer); edTimer = setTimeout(() => { readEditor(); drawStatic(); }, 400); });
+["capOn","capScript"].forEach(id => $(id).addEventListener("input", drawStatic));
+
+$("capBtn").onclick = async () => {
+  if (capBusy || !state.file) return;
+  capBusy = true; $("capBtn").disabled = true; $("renderBtn").disabled = true;
+  const prog = v => $("capProg").style.width = Math.round(v * 100) + "%";
+  const hint = (t, cls) => { $("capHint").textContent = t; $("capHint").style.color = cls === "err" ? "var(--err)" : cls === "ok" ? "var(--ok)" : ""; };
+  try {
+    prog(0); hint("AI model load ho raha hai…");
+    const kind = $("capModel").value;
+    const asr = await getAsr(kind, (l, t) => { prog(0.3 * l / t); hint(`AI model download ho raha hai… ${(l / 1048576).toFixed(0)} / ${(t / 1048576).toFixed(0)} MB (sirf pehli baar)`); });
+    hint("Gaana padha ja raha hai…");
+    const audio = await decode16k(state.file);
+    const SR = 16000, WIN = 30 * SR, lang = $("capLang").value || undefined, words = [];
+    const t0 = Date.now();
+    for (let s = 0; s < audio.length; s += WIN) {
+      const part = audio.subarray(s, Math.min(audio.length, s + WIN));
+      if (part.length < SR * 0.6) break;
+      let rms = 0; for (let k = 0; k < part.length; k += 32) rms += part[k] * part[k];
+      if (Math.sqrt(rms / (part.length / 32)) > 0.004) {
+        const out = await asr(part, { language: lang, task: "transcribe", return_timestamps: "word" });
+        (out.chunks || []).forEach(c => {
+          const a = c.timestamp[0], b = c.timestamp[1] == null ? a + 0.4 : c.timestamp[1];
+          words.push({ w: (c.text || "").trim(), t: a + s / SR, e: b + s / SR });
+        });
+      }
+      const done = Math.min(1, (s + WIN) / audio.length);
+      const el = (Date.now() - t0) / 1000, left = done > 0.05 ? el / done - el : 0;
+      prog(0.3 + 0.7 * done);
+      hint(`Caption ban rahe hain… ${Math.round(done * 100)}%` + (left > 3 ? ` (lagbhag ${Math.ceil(left / 60)} min baaki)` : ""));
+    }
+    lyr = groupLines(cleanWords(words));
+    writeEditor(); prog(1); drawStatic();
+    if (lyr.length) { hint(`✓ ${lyr.length} caption lines ban gayi. Preview dekho. Koi shabd galat ho to "✏️ Galat shabd theek karo" kholo.`, "ok"); $("capEditBox").open = false; }
+    else hint("Is gaane mein koi shabd samajh nahi aaye. Bhasha sahi chuni hai? 'Behtar' model try karo.", "err");
+  } catch (e) {
+    console.error(e);
+    hint("Caption nahi ban paye: " + (e && e.message ? e.message.slice(0, 140) : e) + ". Internet check karo aur dobara try karo.", "err");
+  } finally {
+    capBusy = false; $("capBtn").disabled = false; $("renderBtn").disabled = !player.duration;
   }
-  $("lyrics").value = txt; $("lrcFile").value = ""; parseLyrics(); drawStatic(); setStatus("Lyrics file load ho gayi.", "ok");
 };
 
-// tap-to-sync
-let syncing = false, syncLines = [], syncTimes = [];
-function showTap() {
-  const i = syncTimes.length;
-  $("tapNow").textContent = i < syncLines.length ? `Line ${i + 1}/${syncLines.length}: ${syncLines[i]}` : "Sab lines ho gayi";
-  $("tapNext").textContent = i + 1 < syncLines.length ? "Agli: " + syncLines[i + 1] : "";
+// Devanagari -> Roman (Hinglish), simple and readable rather than academic
+const DV_C = { "क":"k","ख":"kh","ग":"g","घ":"gh","ङ":"n","च":"ch","छ":"chh","ज":"j","झ":"jh","ञ":"n","ट":"t","ठ":"th","ड":"d","ढ":"dh","ण":"n","त":"t","थ":"th","द":"d","ध":"dh","न":"n","प":"p","फ":"ph","ब":"b","भ":"bh","म":"m","य":"y","र":"r","ल":"l","व":"v","श":"sh","ष":"sh","स":"s","ह":"h","ळ":"l" };
+const DV_NUKTA = { "क":"q","ख":"kh","ग":"g","ज":"z","फ":"f","ड":"r","ढ":"rh" };
+const DV_V = { "अ":"a","आ":"aa","इ":"i","ई":"ee","उ":"u","ऊ":"oo","ए":"e","ऐ":"ai","ओ":"o","औ":"au","ऋ":"ri","ऑ":"o" };
+const DV_M = { "ा":"aa","ि":"i","ी":"ee","ु":"u","ू":"oo","े":"e","ै":"ai","ो":"o","ौ":"au","ृ":"ri","ॅ":"e","ॉ":"o" };
+function romanWord(w) {
+  if (!/[ऀ-ॿ]/.test(w)) return w;
+  let out = "";
+  const ch = [...w.normalize("NFC")];
+  for (let i = 0; i < ch.length; i++) {
+    const c = ch[i];
+    if (DV_C[c]) {
+      let r = DV_C[c];
+      if (ch[i + 1] === "़") { r = DV_NUKTA[c] || r; i++; }
+      const n = ch[i + 1];
+      if (DV_M[n]) { r += DV_M[n]; i++; }
+      else if (n === "्") { i++; }
+      else if (i + 1 < ch.length && /[ऀ-ॿ]/.test(n || "")) r += "a";
+      else if (ch.length <= 2) r += "a";
+      out += r;
+    } else if (DV_V[c]) out += DV_V[c];
+    else if (c === "ं" || c === "ँ") out += "n";
+    else if (c === "ः") out += "h";
+    else if (c === "।" || c === "॥") out += ".";
+    else if (c >= "०" && c <= "९") out += String(c.charCodeAt(0) - 0x966);
+    else if (c !== "़") out += c;
+  }
+  out = out.replace(/aa$/, "a").replace(/ee$/, "i").replace(/oo$/, "u");
+  return w[0] === w[0].toUpperCase() && out ? out[0].toUpperCase() + out.slice(1) : out;
 }
-$("syncBtn").onclick = async () => {
-  syncLines = plainLines();
-  if (!syncLines.length) return setStatus("Pehle lyrics likho ya paste karo.", "err");
-  if (!player.duration) return setStatus("Pehle audio file chuno.", "err");
-  stopAll(); ensureAudio(); await actx.resume(); hideResult();
-  syncing = true; syncTimes = []; showTap(); $("tapBox").style.display = "flex";
-  setBusy(true); $("renderBtn").textContent = "👆 Sync chal raha hai…";
-  player.currentTime = 0; await player.play(); startLoop();
-  setStatus("Har line gaane mein shuru hote hi TAP dabao (computer par Space key).");
-  $("tapBtn").focus();
-};
-$("tapBtn").onclick = () => {
-  if (!syncing) return;
-  syncTimes.push(Math.max(0, player.currentTime - 0.15));
-  if (syncTimes.length >= syncLines.length) finishSync(); else showTap();
-};
-$("tapDone").onclick = () => finishSync();
-document.addEventListener("keydown", e => { if (syncing && e.code === "Space") { e.preventDefault(); $("tapBtn").click(); } });
-function finishSync() {
-  if (!syncing) return; syncing = false;
-  const d = player.duration || 0, n = syncLines.length, got = syncTimes.length;
-  const last = got ? syncTimes[got - 1] : 0;
-  const times = syncLines.map((_, i) => i < got ? syncTimes[i] : last + (d - last) * (i - got + 1) / (n - got + 1));
-  if (got) $("lyrics").value = syncLines.map((l, i) => lrcTime(times[i]) + " " + l).join("\n");
-  $("tapBox").style.display = "none";
-  player.pause(); stopLoop(); setBusy(false);
-  parseLyrics(); drawStatic();
-  setStatus(got ? `Sync ho gaya (${got}/${n} lines tap ki). Ab Preview dekho ya Video banao.` : "Sync cancel kiya.", got ? "ok" : "");
-}
+function disp(w) { return $("capScript").value === "roman" ? romanWord(w) : w; }
 
-function wrapRows(text, maxW) {
-  const words = text.split(/\s+/); const rows = []; let cur = "";
-  words.forEach(w => { const t = cur ? cur + " " + w : w; if (ctx.measureText(t).width > maxW && cur) { rows.push(cur); cur = w; } else cur = t; });
-  if (cur) rows.push(cur); return rows;
+function layoutRows(words, maxW) {
+  const sp = ctx.measureText(" ").width, rows = [];
+  let row = { items: [], w: 0 };
+  words.forEach(x => {
+    const s = disp(x.w), ww = ctx.measureText(s).width;
+    if (row.items.length && row.w + sp + ww > maxW) { rows.push(row); row = { items: [], w: 0 }; }
+    row.w += (row.items.length ? sp : 0) + ww; row.items.push({ ...x, s, ww });
+  });
+  if (row.items.length) rows.push(row);
+  return { rows, sp };
 }
 function drawLyrics(t, live) {
-  if (!lyr.length) return;
+  if (!lyr.length || !$("capOn").checked) return;
   const W = cv.width, H = cv.height, S = Math.min(W, H);
   let i = -1; for (let k = 0; k < lyr.length; k++) { if (lyr[k].t <= t + 0.001) i = k; else break; }
-  if (i < 0 && !live) i = 0;
-  if (i < 0) return;
-  const L = lyr[i]; if (!L.text) return;
-  const end = i + 1 < lyr.length ? lyr[i + 1].t : (player.duration || L.t + 5);
-  const since = live ? t - L.t : 0.6;
-  const prog = live ? Math.min(1, Math.max(0, since / Math.max(0.6, (end - L.t) * 0.85))) : 0.45;
-  const st = state.sub, hi = $("subColor").value, tc = $("textColor").value;
-  const px = S * (+$("subSize").value) / 100;
-  ctx.save();
-  ctx.font = fnt(px); ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  const rows = wrapRows(L.text, W * 0.86);
-  const lh = px * 1.3, blockH = rows.length * lh;
-  const pos = $("subPos").value;
+  if (!live) { if (i < 0 || t > lyr[i].end) i = Math.max(0, i); t = live ? t : Math.min(Math.max(t, lyr[i].t + (lyr[i].end - lyr[i].t) * 0.45), lyr[i].end); }
+  if (i < 0 || (live && t > lyr[i].end + 0.25)) return;
+  const L = lyr[i], st = state.sub, hi = $("subColor").value, tc = $("textColor").value;
+  const since = t - L.t, px = S * (+$("subSize").value) / 100, pos = $("subPos").value;
+  const wp = x => t >= x.e ? 1 : t <= x.t ? 0 : (t - x.t) / (x.e - x.t);
+  let curW = null; L.words.forEach(x => { if (x.t <= t) curW = x; });
+  ctx.save(); ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.lineJoin = "round";
+
+  if (st === "word") { // one big word at a time (Reels style)
+    const x = curW || L.words[0]; if (!x) { ctx.restore(); return; }
+    const s = disp(x.w), k = Math.min(1, (t - x.t) / 0.18);
+    let big = px * 1.9; ctx.font = fnt(big); const mw = ctx.measureText(s).width;
+    if (mw > W * 0.9) { big *= W * 0.9 / mw; ctx.font = fnt(big); }
+    const cy = pos === "top" ? H * 0.24 : pos === "middle" ? H * 0.5 : H * 0.78;
+    ctx.translate(W / 2, cy); const sc = 0.7 + 0.3 * (1 - Math.pow(1 - Math.max(0, k), 3)); ctx.scale(sc, sc);
+    ctx.textAlign = "center"; ctx.lineWidth = big * 0.14; ctx.strokeStyle = "rgba(0,0,0,.9)"; ctx.strokeText(s, 0, 0);
+    ctx.fillStyle = hi; ctx.shadowColor = hi; ctx.shadowBlur = big * 0.25; ctx.fillText(s, 0, 0);
+    ctx.restore(); return;
+  }
+
+  ctx.font = fnt(px);
+  const { rows, sp } = layoutRows(L.words, W * 0.86);
+  const lh = px * 1.32, blockH = rows.length * lh;
   const cy = pos === "top" ? H * 0.24 : pos === "middle" ? H * 0.5 : H * 0.8 - (rows.length - 1) * lh / 2;
   const y0 = cy - blockH / 2 + lh / 2;
-  // entry animation
-  let alpha = Math.min(1, since / 0.25), scale = 1;
-  if (st === "pop") { const k = Math.min(1, since / 0.3); scale = 0.6 + 0.4 * (1 - Math.pow(1 - k, 3)) + (k < 1 ? 0.06 * Math.sin(k * Math.PI) : 0); }
+  let alpha = live ? Math.min(1, since / 0.2) : 1, scale = 1;
+  if (live && t > L.end) alpha *= Math.max(0, 1 - (t - L.end) / 0.25);
+  if (st === "pop") { const k = live ? Math.min(1, since / 0.3) : 1; scale = 0.6 + 0.4 * (1 - Math.pow(1 - k, 3)) + (k < 1 ? 0.06 * Math.sin(k * Math.PI) : 0); }
   ctx.globalAlpha = alpha;
   ctx.translate(W / 2, cy); ctx.scale(scale, scale); ctx.translate(-W / 2, -cy);
   if (st === "box") {
-    const bw = Math.max(...rows.map(r => ctx.measureText(r).width)) + px * 1.2;
-    ctx.fillStyle = "rgba(0,0,0,.55)"; roundRect(W / 2 - bw / 2, y0 - lh / 2 - px * 0.25, bw, blockH + px * 0.5, px * 0.4);
+    const bw = Math.max(...rows.map(r => r.w)) + px * 1.2;
+    ctx.fillStyle = "rgba(0,0,0,.6)"; roundRect(W / 2 - bw / 2, y0 - lh / 2 - px * 0.2, bw, blockH + px * 0.4, px * 0.4);
   }
-  const widths = rows.map(r => ctx.measureText(r).width), total = widths.reduce((a, b) => a + b, 0);
-  let fill = prog * total;
   rows.forEach((r, j) => {
-    const y = y0 + j * lh, w = widths[j], x0 = W / 2 - w / 2;
-    if (st === "karaoke") {
-      ctx.shadowColor = "rgba(0,0,0,.7)"; ctx.shadowBlur = px * 0.25;
-      ctx.fillStyle = tc; ctx.globalAlpha = alpha * 0.6; ctx.fillText(r, W / 2, y); ctx.globalAlpha = alpha;
-      const fw = Math.max(0, Math.min(w, fill)); fill -= w;
-      if (fw > 0) { ctx.save(); ctx.beginPath(); ctx.rect(x0 - 2, y - lh, fw + 2, lh * 2); ctx.clip(); ctx.fillStyle = hi; ctx.shadowColor = hi; ctx.shadowBlur = px * 0.35; ctx.fillText(r, W / 2, y); ctx.restore(); }
-    } else if (st === "neon") {
-      ctx.fillStyle = "#ffffff"; ctx.shadowColor = hi;
-      ctx.shadowBlur = px * 0.6; ctx.fillText(r, W / 2, y); ctx.shadowBlur = px * 0.25; ctx.fillText(r, W / 2, y);
-    } else if (st === "pop") {
-      ctx.lineJoin = "round"; ctx.lineWidth = px * 0.16; ctx.strokeStyle = "rgba(0,0,0,.85)"; ctx.strokeText(r, W / 2, y);
-      ctx.fillStyle = hi; ctx.fillText(r, W / 2, y);
-    } else {
-      ctx.shadowColor = "rgba(0,0,0,.75)"; ctx.shadowBlur = px * 0.3; ctx.fillStyle = tc; ctx.fillText(r, W / 2, y);
-    }
+    const y = y0 + j * lh; let x = W / 2 - r.w / 2;
+    r.items.forEach(it => {
+      const p = wp(it);
+      if (st === "karaoke") {
+        ctx.shadowColor = "rgba(0,0,0,.75)"; ctx.shadowBlur = px * 0.25;
+        ctx.globalAlpha = alpha * 0.6; ctx.fillStyle = tc; ctx.fillText(it.s, x, y); ctx.globalAlpha = alpha;
+        if (p > 0) { ctx.save(); ctx.beginPath(); ctx.rect(x - 2, y - lh, it.ww * p + 2, lh * 2); ctx.clip(); ctx.fillStyle = hi; ctx.shadowColor = hi; ctx.shadowBlur = px * 0.35; ctx.fillText(it.s, x, y); ctx.restore(); }
+      } else if (st === "neon") {
+        ctx.fillStyle = "#ffffff"; ctx.shadowColor = hi; ctx.shadowBlur = px * 0.6; ctx.fillText(it.s, x, y); ctx.shadowBlur = px * 0.25; ctx.fillText(it.s, x, y);
+      } else if (st === "pop") {
+        ctx.lineWidth = px * 0.16; ctx.strokeStyle = "rgba(0,0,0,.85)"; ctx.strokeText(it.s, x, y); ctx.fillStyle = hi; ctx.fillText(it.s, x, y);
+      } else if (st === "typewriter") {
+        if (p > 0) {
+          const chars = [...it.s], n = Math.max(1, Math.ceil(chars.length * Math.min(1, p * 1.6)));
+          const part = chars.slice(0, n).join("");
+          ctx.shadowColor = "rgba(0,0,0,.8)"; ctx.shadowBlur = px * 0.3; ctx.fillStyle = tc; ctx.fillText(part, x, y);
+          if (it === curW && p < 1) { const cw = ctx.measureText(part).width; ctx.fillStyle = hi; ctx.fillRect(x + cw + px * 0.06, y - px * 0.45, px * 0.08, px * 0.9); }
+        }
+      } else if (st === "highlight") {
+        const on = it === curW && t <= it.e + 0.35;
+        if (on) { ctx.shadowBlur = 0; ctx.fillStyle = hi; roundRect(x - px * 0.18, y - px * 0.62, it.ww + px * 0.36, px * 1.24, px * 0.3); ctx.fillStyle = "#111111"; ctx.fillText(it.s, x, y); }
+        else { ctx.shadowColor = "rgba(0,0,0,.75)"; ctx.shadowBlur = px * 0.3; ctx.fillStyle = p >= 1 ? tc : tc; ctx.globalAlpha = alpha * (p >= 1 ? 1 : 0.75); ctx.fillText(it.s, x, y); ctx.globalAlpha = alpha; }
+      } else { // simple, box
+        ctx.shadowColor = "rgba(0,0,0,.75)"; ctx.shadowBlur = st === "box" ? 0 : px * 0.3; ctx.fillStyle = tc; ctx.fillText(it.s, x, y);
+      }
+      x += it.ww + sp;
+    });
   });
   ctx.restore();
   // next line, dim
-  if ($("subNext").checked && i + 1 < lyr.length && lyr[i + 1].text && (st === "karaoke" || st === "simple" || st === "box")) {
+  const nx = lyr[i + 1];
+  if ($("subNext").checked && nx && ["karaoke","simple","box","highlight"].includes(st)) {
     ctx.save(); ctx.font = fnt(px * 0.62, 500); ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.fillStyle = tc; ctx.globalAlpha = 0.5; ctx.shadowColor = "rgba(0,0,0,.7)"; ctx.shadowBlur = px * 0.2;
-    const ny = pos === "top" ? y0 + blockH + px * 0.3 : pos === "middle" ? y0 + blockH + px * 0.3 : y0 + blockH + px * 0.15;
-    if (ny < H - S * 0.09) { const nr = wrapRows(lyr[i + 1].text, W * 0.8); ctx.fillText(nr[0] + (nr.length > 1 ? " …" : ""), W / 2, ny); }
+    const ny = y0 + blockH + px * (pos === "bottom" ? 0.15 : 0.3);
+    if (ny < H - S * 0.09) { let s = nx.words.map(x => disp(x.w)).join(" "); while (ctx.measureText(s).width > W * 0.8 && s.length > 4) s = s.slice(0, -2); if (s.length < nx.text.length) s += "…"; ctx.fillText(s, W / 2, ny); }
     ctx.restore();
   }
 }
@@ -430,13 +535,14 @@ wireDrop("audioDrop", "audioFile", f => {
   if (state.audioUrl) URL.revokeObjectURL(state.audioUrl);
   state.audioUrl = URL.createObjectURL(f);
   state.audioName = f.name.replace(/\.[^.]+$/, "");
+  state.file = f; lyr = []; $("capEdit").value = ""; $("capProg").style.width = "0";
   player.src = state.audioUrl;
   $("audioLabel").innerHTML = `<strong>${escapeHtml(f.name)}</strong><small>badalne ke liye click karo</small>`;
   if (!$("title").value) $("title").value = state.audioName.slice(0, 80);
   player.onloadedmetadata = () => {
     setStatus(`Audio ready — ${fmt(player.duration)}. Preview dekho ya "Video banao" dabao.`, "ok");
     $("previewBtn").disabled = $("renderBtn").disabled = false;
-    parseLyrics(); drawStatic();
+    $("capBtn").disabled = capBusy; drawStatic();
   };
   player.onerror = () => { $("previewBtn").disabled = $("renderBtn").disabled = true; setStatus("Yeh file chal nahi pa rahi. MP3 ya M4A file try karo.", "err"); };
 });
@@ -632,7 +738,7 @@ $("previewBtn").onclick = async () => {
   startLoop(); $("stopBtn").disabled = false; setStatus("Preview chal raha hai…");
 };
 $("stopBtn").onclick = () => stopAll(true);
-player.addEventListener("ended", () => { if (syncing) return finishSync(); if (!recording) { stopLoop(); $("stopBtn").disabled = true; setStatus("Preview khatam."); } });
+player.addEventListener("ended", () => { if (!recording) { stopLoop(); $("stopBtn").disabled = true; setStatus("Preview khatam."); } });
 
 // ---------- render ----------
 let recording = false, recorder = null, cancelled = false, convertedOk = false;
@@ -646,7 +752,7 @@ $("renderBtn").onclick = async () => {
   stopAll();
   ensureAudio(); await actx.resume();
   hideResult();
-  await loadFont(); parseLyrics();
+  await loadFont();
   const fps = +$("fps").value;
   const vStream = cv.captureStream(fps);
   const stream = new MediaStream([...vStream.getVideoTracks(), ...streamDest.stream.getAudioTracks()]);
@@ -701,7 +807,6 @@ function setBusy(b) {
   document.querySelectorAll("#controls input,#controls select,#controls button,#controls textarea").forEach(el => el.disabled = b);
 }
 function stopAll(user) {
-  if (syncing) return finishSync();
   if (recording && recorder && recorder.state !== "inactive") { cancelled = !!user; recorder.stop(); }
   player.pause(); stopLoop(); $("stopBtn").disabled = true;
   if (user && !recording) setStatus("Ruk gaya.");
