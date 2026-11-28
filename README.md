@@ -11,6 +11,10 @@ real time; if the browser can't record H.264 directly, the clip is converted to 
 First visit: enter the setup code printed in the server log (or set `SETUP_CODE`) and choose a password.
 Keep `DATA_DIR` on persistent storage, or the password and songs are lost on restart.
 
+### Forgot password
+`/reset` accepts the setup code of the current run. To receive a code by email instead, set `SMTP_USER`,
+`SMTP_PASSWORD` (a Gmail app password) and `RESET_EMAIL` (in Colab: add them under Secrets).
+
 ## Engine
 No paid API is needed. `ENGINE=ace` uses your own ACE-Step server (`ACESTEP_URL`, needs a GPU).
 The default `demo` engine makes simple instrumental music only.
