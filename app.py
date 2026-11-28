@@ -15,6 +15,7 @@ from flask import Flask, jsonify, request, send_file, send_from_directory, abort
 import engines
 import media
 import voiceover
+import reference
 from auth import init_auth
 
 BASE = os.path.dirname(os.path.abspath(__file__))
@@ -22,6 +23,7 @@ DATA = os.environ.get("DATA_DIR", os.path.join(BASE, "data"))
 SONGS = os.path.join(DATA, "songs")
 os.makedirs(SONGS, exist_ok=True)
 DB = os.path.join(DATA, "dhun.db")
+REFS = os.path.join(DATA, "refs")
 
 ENGINE = os.environ.get("ENGINE", "demo")           # demo | ace
 MAX_DURATION = int(os.environ.get("MAX_DURATION", "600"))   # seconds (10 min)
@@ -82,7 +84,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS usage(uid TEXT, day TEXT, n INTEGER, PRIMARY KEY(uid, day));
         """)
         for col, typ in (("creator", "TEXT DEFAULT ''"), ("language", "TEXT DEFAULT ''"),
-                         ("voice", "TEXT DEFAULT ''"), ("plays", "INTEGER DEFAULT 0")):
+                         ("voice", "TEXT DEFAULT ''"), ("ref", "TEXT DEFAULT ''"), ("plays", "INTEGER DEFAULT 0")):
             try:
                 c.execute(f"ALTER TABLE songs ADD COLUMN {col} {typ}")
             except sqlite3.OperationalError:
@@ -169,6 +171,20 @@ def config():
                    daily_limit=DAILY_LIMIT)
 
 
+@app.route("/api/reference", methods=["POST"])
+def upload_reference():
+    f = request.files.get("file")
+    if not f:
+        return jsonify(error="Audio file chuniye"), 400
+    if request.form.get("consent") != "yes":
+        return jsonify(error="Pehle confirm karein ki yeh music aapka hai ya aapko ijazat hai"), 400
+    try:
+        ref_id, warnings = reference.save(f, REFS)
+    except ValueError as e:
+        return jsonify(error=str(e)), 400
+    return jsonify(id=ref_id, warnings=warnings)
+
+
 @app.route("/api/generate", methods=["POST"])
 def generate():
     u = uid()
@@ -198,6 +214,13 @@ def generate():
     if Q.qsize() >= MAX_QUEUE:
         return jsonify(error="Server is busy, try again in a minute."), 429
 
+    ref = str(d.get("reference") or "")
+    if ref:
+        if ENGINE != "ace":
+            return jsonify(error="Reference audio sirf ACE-Step engine ke saath chalta hai"), 400
+        if not reference.path_for(REFS, ref):
+            return jsonify(error="Reference audio nahi mila, dobara upload karein"), 400
+
     grp = uuid.uuid4().hex
     ids = []
     now = time.time()
@@ -212,6 +235,7 @@ def generate():
                       (sid, u, grp, v, t if v == 0 else f"{t} (v2)", prompt, lyrics, styles, exclude,
                        int(instrumental), duration, quality, "pending", int(d.get("public", True)), now, ENGINE,
                        creator, language, voice))
+            c.execute("UPDATE songs SET ref=? WHERE id=?", (ref, sid))
             ids.append(sid)
         c.execute("INSERT INTO usage(uid,day,n) VALUES(?,?,1) ON CONFLICT(uid,day) DO UPDATE SET n=n+1", (u, day))
     Q.put(("gen", ids))
@@ -427,10 +451,14 @@ def do_generate(ids):
         return
     job = dict(rows[0]); job["id"] = rows[0]["grp"]
     job["exclude"] = rows[0]["exclude"]
+    job["ref_audio"] = reference.path_for(REFS, rows[0]["ref"])
     _v, _, _e = (rows[0]["voice"] or "auto").partition(":")
     job["voice_caption"] = ", ".join(x for x in (VOICES.get(_v, VOICES["auto"])["caption"],
                                                  EMOTIONS.get(_e, EMOTIONS["auto"])["caption"]) if x)
     job["language_name"] = LANGS.get(rows[0]["language"] or "", "")
+    if rows[0]["ref"] and not job["ref_audio"]:
+        set_status(ids, status="failed", error="Reference audio nahi mila")
+        return
     set_status(ids, status="running")
     work = os.path.join(song_dir(ids[0]), "_tmp")
     os.makedirs(work, exist_ok=True)

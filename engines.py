@@ -12,6 +12,7 @@ import subprocess
 import time
 import urllib.parse
 import urllib.request
+import uuid
 import wave
 
 import numpy as np
@@ -52,6 +53,24 @@ def _http_json(url, payload=None, headers=None, timeout=60):
         return json.loads(r.read().decode())
 
 
+def _post_with_file(url, fields, name, path, headers):
+    """multipart/form-data POST (ACE-Step takes reference audio as an uploaded file)."""
+    mark = uuid.uuid4().hex
+    body = b""
+    for k, v in fields.items():
+        v = str(v).lower() if isinstance(v, bool) else str(v)
+        body += f'--{mark}\r\nContent-Disposition: form-data; name="{k}"\r\n\r\n{v}\r\n'.encode()
+    body += (f'--{mark}\r\nContent-Disposition: form-data; name="{name}"; filename="reference.wav"\r\n'
+             "Content-Type: audio/wav\r\n\r\n").encode()
+    with open(path, "rb") as fh:
+        body += fh.read()
+    body += f"\r\n--{mark}--\r\n".encode()
+    req = urllib.request.Request(url, data=body, headers=dict(headers or {}))
+    req.add_header("Content-Type", f"multipart/form-data; boundary={mark}")
+    with urllib.request.urlopen(req, timeout=300) as r:
+        return json.loads(r.read().decode())
+
+
 def _caption(job):
     caption = job["styles"] or job["prompt"]
     if job["prompt"] and job["styles"]:
@@ -85,7 +104,10 @@ def generate_ace(job, out_dir, variants=2):
         "thinking": job.get("quality") == "high",
         "vocal_language": job.get("language") or "unknown",
     }
-    res = _http_json(base + "/release_task", payload, hdr)
+    if job.get("ref_audio"):
+        res = _post_with_file(base + "/release_task", payload, "ref_audio", job["ref_audio"], hdr)
+    else:
+        res = _http_json(base + "/release_task", payload, hdr)
     task_id = res["data"]["task_id"]
 
     deadline = time.time() + 60 * 40

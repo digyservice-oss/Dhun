@@ -59,6 +59,11 @@
             <div class="chips" id="styleChips"></div>
             <label><span data-i18n="exclude">Exclude styles</span></label>
             <input id="exclude" maxlength="200" placeholder="heavy metal, autotune">
+            <label>Reference audio (optional)</label>
+            <input type="file" id="refFile" accept="audio/*,video/mp4,.mp3,.wav,.m4a,.mp4">
+            <div class="small">Saaf recording, bina shor ke · 10-60 second · jaisa gaana chahiye usi style ka (sirf pehle 60 second liye jaate hain). Isse mood/sound par asar padta hai, singer ki hubahu awaaz nahi aati.</div>
+            <label class="small"><input type="checkbox" id="refOk"> Yeh music mera hai ya mujhe iske use ki ijazat hai</label>
+            <button type="button" class="ghost sm" id="refClear">Reference hatayein</button>
             <label data-i18n="title">Song title</label>
             <input id="title" maxlength="80">
           </div>

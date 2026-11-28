@@ -192,6 +192,8 @@ ${idea}…`;
   toast(tr("lyrics_added"));
 };
 
+$("#refClear").onclick = () => { $("#refFile").value = ""; $("#refOk").checked = false; };
+
 $("#btnCreate").onclick = async () => {
   const btn = $("#btnCreate"); $("#err").textContent = "";
   const custom = mode === "custom";
@@ -206,6 +208,18 @@ $("#btnCreate").onclick = async () => {
     duration: +$("#duration").value, quality: $("#quality").value, public: $("#public").checked,
   };
   btn.disabled = true;
+  try {
+    const file = custom && $("#refFile").files[0];
+    if (file) {
+      const form = new FormData();
+      form.append("file", file); form.append("consent", $("#refOk").checked ? "yes" : "");
+      const up = await fetch("/api/reference", { method: "POST", body: form });
+      const j = await up.json().catch(() => ({}));
+      if (!up.ok) throw new Error(j.error || "Reference upload nahi hua");
+      body.reference = j.id;
+      if (j.warnings.length) toast(j.warnings.join(" · "));
+    }
+  } catch (e) { $("#err").textContent = e.message; btn.disabled = false; return; }
   try { const r = await api("/api/generate", { method: "POST", body: JSON.stringify(body) }); cfg.daily_left = r.daily_left; credits(); await refresh(); }
   catch (e) { $("#err").textContent = e.message; }
   btn.disabled = false;
