@@ -113,7 +113,7 @@ def init_auth(app, data_dir):
         if request.method == "POST":
             pw = request.form.get("password", "")
             if first:
-                if not secrets.compare_digest(request.form.get("code", "").encode(), setup_code.encode()):
+                if not secrets.compare_digest(request.form.get("code", "").strip().encode(), setup_code.encode()):
                     msg = "Setup code galat hai."
                 elif len(pw) < 8:
                     msg = "Password kam se kam 8 akshar ka rakhein."
