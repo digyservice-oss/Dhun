@@ -1,5 +1,5 @@
 /* JSON import and script -> voice-over */
-const SAMPLE = { type: "voiceover", title: "Mera Ad", language: "hi", music: { style: "soft cinematic", volume: 0.25 },
+const SAMPLE = { type: "voiceover", title: "Mera Ad", language: "hi", voice: "female", music: { style: "soft cinematic", volume: 0.25 },
   segments: [{ text: "नमस्ते, आपका स्वागत है।", pause: 0.6 }, { text: "आज ही हमसे जुड़िए।" }] };
 $("#jsonIn").value = JSON.stringify(SAMPLE, null, 2);
 $("#jsonFile").onchange = async e => { const f = e.target.files[0]; if (f) $("#jsonIn").value = await f.text(); };
@@ -20,4 +20,4 @@ $("#jsonRun").onclick = () => {
   submitSpec(spec);
 };
 $("#voMake").onclick = () => submitSpec({ type: "voiceover", language: $("#songLang").value || "hi",
-  script: $("#voScript").value, music: { style: $("#voStyle").value } });
+  script: $("#voScript").value, voice: $("#voGender").value, music: { style: $("#voStyle").value } });

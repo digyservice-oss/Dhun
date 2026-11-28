@@ -19,4 +19,5 @@ The default `demo` engine makes simple instrumental music only.
 `POST /api/voiceover` with `{"title":"", "language":"hi", "script":"..." or "segments":[{"text":"","pause":0.5}],
 "music":{"style":"soft cinematic","volume":0.25}}`. In the UI use the "JSON / Voice-over" tab.
 Songs use `{"type":"song","styles":"","lyrics":"","duration":120}`.
-For natural voices set `PIPER_VOICES_DIR` to a folder with Piper models; otherwise espeak-ng is used.
+Hindi and English use the free Kokoro-82M model when `requirements-voice.txt` is installed (the Colab notebook
+does this); `"voice"` is `female` or `male`. For other languages set `PIPER_VOICES_DIR` to a folder with Piper models; otherwise espeak-ng is used.

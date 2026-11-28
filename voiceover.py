@@ -1,6 +1,6 @@
 """Script -> spoken voice-over over background music. Runs fully offline.
 
-Speech: Piper (set PIPER_VOICES_DIR, files named <lang>*.onnx, e.g. hi_IN-....onnx),
+Speech: Kokoro-82M (Apache-2.0) for Hindi/English when installed; else Piper (set PIPER_VOICES_DIR, files named <lang>*.onnx, e.g. hi_IN-....onnx),
 otherwise espeak-ng (robotic, but needs no download).
 """
 import glob
@@ -40,14 +40,45 @@ def parse(d):
     if lang not in ("hi", "en", "bn", "pa", "mr"):
         raise ValueError("language: hi, en, bn, pa ya mr")
     return {"title": str(d.get("title") or out[0]["text"][:40])[:80], "language": lang,
-            "segments": out, "music_style": style, "music_volume": volume}
+            "segments": out, "gender": "male" if d.get("voice") == "male" else "female", "music_style": style, "music_volume": volume}
 
 
 def _ffmpeg(*args):
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", *args], check=True)
 
 
-def speak(text, lang, out_wav):
+# Kokoro: language -> (pipeline code, female voice, male voice)
+KOKORO = {"hi": ("h", "hf_alpha", "hm_omega"), "en": ("a", "af_heart", "am_michael")}
+_pipelines = {}
+
+
+def _kokoro(text, lang, gender, out_wav):
+    """True if Kokoro spoke the text, False if it is not available for this language."""
+    if lang not in KOKORO:
+        return False
+    try:
+        from kokoro import KPipeline
+    except ImportError:
+        return False
+    import numpy as np
+    code, female, male = KOKORO[lang]
+    if code not in _pipelines:   # CPU, so the GPU stays free for the music model
+        _pipelines[code] = KPipeline(lang_code=code, repo_id="hexgrad/Kokoro-82M", device="cpu")
+    parts = [np.asarray(audio) for _, _, audio in _pipelines[code](text, voice=male if gender == "male" else female)]
+    if not parts:
+        raise RuntimeError("Kokoro ne koi awaaz nahi banayi")
+    pcm = (np.clip(np.concatenate(parts), -1, 1) * 32767).astype(np.int16)
+    with wave.open(out_wav, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(24000)
+        w.writeframes(pcm.tobytes())
+    return True
+
+
+def speak(text, lang, out_wav, gender="female"):
+    if _kokoro(text, lang, gender, out_wav):
+        return
     voices = os.environ.get("PIPER_VOICES_DIR")
     models = sorted(glob.glob(os.path.join(voices, f"{lang}*.onnx"))) if voices else []
     if models:
@@ -69,7 +100,7 @@ def render(spec, music_engine, sid, work, out_mp3, max_seconds):
         total = 0
         for i, seg in enumerate(spec["segments"]):
             raw, fixed = os.path.join(work, f"s{i}.wav"), os.path.join(work, f"f{i}.wav")
-            speak(seg["text"], spec["language"], raw)
+            speak(seg["text"], spec["language"], raw, spec["gender"])
             _ffmpeg("-i", raw, "-ar", str(RATE), "-ac", "1", "-c:a", "pcm_s16le", fixed)
             with wave.open(fixed) as r:
                 frames = r.readframes(r.getnframes())
