@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dhun – Make any song you can imagine</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="logo"><span class="dot"></span>Dhun</div>
+    <nav>
+      <a data-view="create" class="active">✦ <span data-i18n="nav_create">Create</span></a>
+      <a data-view="library">♪ <span data-i18n="nav_library">Library</span></a>
+      <a data-view="explore">◎ <span data-i18n="nav_explore">Explore</span></a>
+    </nav>
+    <div class="credits"><div id="creditsTxt">–</div><div class="bar"><i id="creditsBar"></i></div><small data-i18n="creates_left">creates left today</small></div>
+  </aside>
+
+  <main>
+    <header class="top">
+      <div class="logo m"><span class="dot"></span>Dhun</div>
+      <button id="menuBtn" class="iconbtn" aria-label="Menu">☰</button>
+    </header>
+
+    <!-- CREATE -->
+    <section id="v-create" class="view active">
+      <div class="create-grid">
+        <div class="panel form">
+          <div class="tabs" id="modeTabs"><button class="on" data-mode="simple" data-i18n="simple">Simple</button><button data-mode="custom" data-i18n="custom">Custom</button><button data-mode="json">JSON / Voice-over</button></div>
+          <div id="jsonBox" hidden>
+            <label>Script (voice-over ke liye)</label>
+            <textarea id="voScript" rows="6" placeholder="Har line alag boli jayegi"></textarea>
+            <label>Background music style</label>
+            <input id="voStyle" value="soft cinematic">
+            <button class="ghost" id="voMake">Script se voice-over banayein</button>
+            <label>Ya JSON (song / voice-over)</label>
+            <textarea id="jsonIn" rows="10" spellcheck="false"></textarea>
+            <input type="file" id="jsonFile" accept=".json,application/json">
+            <button class="primary" id="jsonRun">JSON se banayein</button>
+            <div class="err" id="jsonErr"></div>
+          </div>
+
+
+          <div id="simpleBox">
+            <label data-i18n="desc">Song description</label>
+            <textarea id="prompt" rows="5" maxlength="500" data-i18n-ph="desc_ph" placeholder="A dreamy lo-fi song about a rainy night…"></textarea>
+          </div>
+
+          <div id="customBox" hidden>
+            <div class="row between"><label data-i18n="lyrics">Lyrics</label><button class="ghost sm" id="btnLyrics" data-i18n="starter">✎ Starter lyrics</button></div>
+            <textarea id="lyrics" rows="8" maxlength="5000" placeholder="[Verse 1]&#10;…&#10;&#10;[Chorus]&#10;…"></textarea>
+            <label data-i18n="styles">Styles</label>
+            <input id="styles" maxlength="200" placeholder="bollywood, romantic, 90 bpm">
+            <div class="chips" id="styleChips"></div>
+            <label><span data-i18n="exclude">Exclude styles</span></label>
+            <input id="exclude" maxlength="200" placeholder="heavy metal, autotune">
+            <label data-i18n="title">Song title</label>
+            <input id="title" maxlength="80">
+          </div>
+
+          <div class="row between toggle"><span data-i18n="instrumental">Instrumental</span><label class="sw"><input type="checkbox" id="instrumental"><i></i></label></div>
+
+          <div class="adv">
+            <div class="row between"><label data-i18n="songlang">Song language</label><select id="songLang"></select></div>
+            <div class="row between" style="margin-top:10px"><label data-i18n="voice">Voice</label><select id="voice"></select></div>
+            <div class="row between" style="margin-top:10px"><label data-i18n="emotion">Emotion</label><select id="emotion"></select></div>
+            <div class="small note2" data-i18n="voice_note">Voices and languages need the AI engine.</div>
+            <div class="row between" style="margin-top:14px"><label data-i18n="length">Song length</label><b id="durLbl">2:00</b></div>
+            <input type="range" id="duration" min="30" max="600" step="15" value="120">
+            <div class="row between small"><span>0:30</span><span>10:00</span></div>
+            <div class="row between" style="margin-top:12px">
+              <label data-i18n="quality">Quality</label>
+              <select id="quality"><option value="fast" data-i18n="fast">Fast</option><option value="high" data-i18n="high">High (slower)</option></select>
+            </div>
+            <div class="row between toggle"><span data-i18n="share">Share on Explore</span><label class="sw"><input type="checkbox" id="public" checked><i></i></label></div>
+          </div>
+
+          <button class="primary" id="btnCreate">✦ <span data-i18n="create">Create</span></button>
+          <div class="err" id="err"></div>
+          <div class="note" id="engineNote"></div>
+        </div>
+
+        <div class="results">
+          <h2 data-i18n="latest">Your latest songs</h2>
+          <div id="latest" class="songlist"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- LIBRARY -->
+    <section id="v-library" class="view">
+      <div class="row between head"><h2 data-i18n="nav_library">Library</h2><input id="search" class="search" data-i18n-ph="search_ph" placeholder="Search…"></div>
+      <div id="library" class="songlist"></div>
+    </section>
+
+    <!-- EXPLORE -->
+    <section id="v-explore" class="view">
+      <h2 data-i18n="listen_now">Listen Now</h2>
+      <div id="exLatest" class="carousel"></div>
+      <h2 style="margin-top:22px" data-i18n="most_played">Most played</h2>
+      <div id="exTop" class="carousel"></div>
+    </section>
+  </main>
+</div>
+
+<nav class="tabbar">
+  <button data-view="explore"><i>◎</i><span data-i18n="nav_explore">Explore</span></button>
+  <button data-view="create" class="mid"><i>✦</i></button>
+  <button data-view="library"><i>♪</i><span data-i18n="nav_library">Library</span></button>
+</nav>
+
+<div class="player" id="player" hidden>
+  <img id="pCover" alt="">
+  <div class="pinfo"><b id="pTitle">–</b><small id="pStyles"></small></div>
+  <div class="pctl">
+    <button id="pPrev">⏮</button><button id="pPlay" class="pp">▶</button><button id="pNext">⏭</button>
+  </div>
+  <div class="pseek"><span id="pCur">0:00</span><input type="range" id="pSeek" min="0" max="1000" value="0"><span id="pDur">0:00</span></div>
+  <div class="pvol">🔈<input type="range" id="pVol" min="0" max="100" value="80"></div>
+</div>
+<audio id="audio" preload="metadata"></audio>
+
+<!-- menu drawer -->
+<div class="overlay" id="overlay" hidden></div>
+<aside class="drawer" id="drawer" hidden>
+  <div class="row between"><b data-i18n="menu">Menu</b><button class="iconbtn" id="drawerClose">✕</button></div>
+  <label data-i18n="yourname">Your name</label>
+  <input id="myName" maxlength="30" placeholder="Guest">
+  <label data-i18n="language">Language</label>
+  <div class="chips big" id="uiLangs"></div>
+  <label data-i18n="theme">Theme</label>
+  <div class="chips big" id="themes"><span data-theme="dark" data-i18n="dark">Dark</span><span data-theme="light" data-i18n="light">Light</span></div>
+  <div class="menulist">
+    <button data-page="invite" data-i18n="invite">Invite friends</button>
+    <button data-page="help" data-i18n="help">Help</button>
+    <button data-page="about" data-i18n="about">About</button>
+    <button data-page="feedback" data-i18n="feedback">Feedback</button>
+    <button data-page="terms" data-i18n="terms">Terms of service</button>
+    <button data-page="privacy" data-i18n="privacy">Privacy policy</button>
+  </div>
+</aside>
+
+<div class="modal" id="pageModal" hidden>
+  <div class="mbox"><b id="pgTitle"></b><div id="pgBody" class="pgbody"></div><button class="ghost" id="pgClose" data-i18n="close">Close</button></div>
+</div>
+<div class="modal" id="lyricModal" hidden>
+  <div class="mbox"><b id="lyTitle"></b><pre id="lyBody"></pre><button class="ghost" onclick="document.getElementById('lyricModal').hidden=true" data-i18n="close">Close</button></div>
+</div>
+<div class="modal" id="vidModal" hidden>
+  <div class="mbox wide"><video id="vidEl" controls playsinline></video><button class="ghost" id="vidClose" data-i18n="close">Close</button></div>
+</div>
+<div class="toast" id="toast" hidden></div>
+<script src="/static/app.js"></script>
+<script src="/static/json.js"></script>
+</body>
+</html>

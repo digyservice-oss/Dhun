@@ -1,0 +1,6 @@
+flask
+numpy
+scipy
+pillow
+gunicorn
+piper-tts
