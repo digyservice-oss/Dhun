@@ -60,8 +60,8 @@ def _caption(job):
         caption += f'. {job["voice_caption"]}'
     if job.get("language_name") and not job["instrumental"]:
         caption += f'. Sung in {job["language_name"]}'
-    if job.get("exclude"):
-        caption += f'. Avoid: {job["exclude"]}'
+    # "exclude" is deliberately not added: the model has no negation, so naming a sound
+    # in the caption (e.g. "Avoid: autotune") can make it appear.
     return caption
 
 
